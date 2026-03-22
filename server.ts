@@ -9,12 +9,43 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
+// Rate Limiting: 2 requests per second per user (IP)
+interface RateLimitData {
+  count: number;
+  resetTime: number;
+}
+const ipRequests = new Map<string, RateLimitData>();
+const WINDOW_MS = 1000; // 1 second
+const MAX_REQUESTS_PER_WINDOW = 2;
+
+const rateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  
+  let data = ipRequests.get(ip);
+  
+  if (!data || now > data.resetTime) {
+    // Reset or initialize window
+    data = { count: 1, resetTime: now + WINDOW_MS };
+    ipRequests.set(ip, data);
+    return next();
+  }
+  
+  if (data.count >= MAX_REQUESTS_PER_WINDOW) {
+    return res.status(429).json({ error: "Too many requests. Limit is 2 requests per second." });
+  }
+  
+  data.count++;
+  ipRequests.set(ip, data);
+  next();
+};
+
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
 // API Route to Enhance Prompt (using Gemma 3 27B / Gemini proxy)
-app.post("/api/enhance-prompt", async (req, res) => {
+app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
   try {
     const { prompt } = req.body;
     const apiKey = process.env.TXT_MODEL_VIVEK_BOL_AI;
@@ -66,7 +97,7 @@ app.get("/api/download", async (req, res) => {
 });
 
 // API Route for Image Generation (Start Task)
-app.post("/api/generate", async (req, res) => {
+app.post("/api/generate", rateLimiter, async (req, res) => {
   try {
     const { prompt, size } = req.body;
     const userPrompt = prompt || "A golden cat";
