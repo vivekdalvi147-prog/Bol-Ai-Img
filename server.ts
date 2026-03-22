@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import { GoogleGenAI } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,11 +13,64 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// API Route to Enhance Prompt (using Gemma 3 27B / Gemini proxy)
+app.post("/api/enhance-prompt", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    const apiKey = process.env.TXT_MODEL_VIVEK_BOL_AI;
+
+    if (!apiKey) {
+      return res.status(400).json({ error: "API Key missing (TXT_MODEL_VIVEK_BOL_AI). Please add it in AI Studio Secrets." });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", // Using this as a proxy for Gemma 3 27B as requested
+      contents: prompt,
+      config: {
+        systemInstruction: "Upgrade the image generation prompt provided by the user. Translate it to English if it is in another language. Make it highly detailed, descriptive, and visually striking by adding details about lighting, camera angle, atmosphere, and style. Keep the final prompt under 2000 characters. ONLY output the upgraded prompt, nothing else.",
+      }
+    });
+
+    res.json({ enhancedPrompt: response.text });
+  } catch (error: any) {
+    console.error("Enhance Prompt Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API Route for Image Download Proxy
+app.get("/api/download", async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).send("URL is required");
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    res.setHeader('Content-Disposition', 'attachment; filename="bol-ai-masterpiece.png"');
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'image/png');
+    res.send(buffer);
+  } catch (error: any) {
+    console.error("Download Error:", error);
+    res.status(500).send(error.message);
+  }
+});
+
 // API Route for Image Generation (Start Task)
 app.post("/api/generate", async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, size } = req.body;
     const userPrompt = prompt || "A golden cat";
+    const imageSize = size || "1024*1024";
     const apiKey = process.env.VIVEK_AI_BOL_IMG;
 
     if (!apiKey) {
@@ -35,7 +89,10 @@ app.post("/api/generate", async (req, res) => {
       headers: { ...commonHeaders, "X-ModelScope-Async-Mode": "true" },
       body: JSON.stringify({
         model: "Tongyi-MAI/Z-Image-Turbo",
-        prompt: userPrompt
+        prompt: userPrompt,
+        parameters: {
+          size: imageSize
+        }
       })
     });
 

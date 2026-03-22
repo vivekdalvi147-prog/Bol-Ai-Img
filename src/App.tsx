@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu } from 'lucide-react';
 
 const EXAMPLE_IMAGES = [
   'v.png', 'v2.png', 'v3.png', 'v4.png', 'v5.png', 'v6.png',
@@ -15,6 +15,8 @@ const EXAMPLE_IMAGES = [
 export default function App() {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [selectedSize, setSelectedSize] = useState("1024*1024");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUiMode, setIsUiMode] = useState(false);
@@ -25,7 +27,10 @@ export default function App() {
 
   const handleDownload = async (url: string) => {
     try {
-      const response = await fetch(url);
+      // If it's an external URL, use our proxy to avoid CORS issues and force download
+      const downloadUrl = url.startsWith('http') ? `/api/download?url=${encodeURIComponent(url)}` : url;
+      
+      const response = await fetch(downloadUrl);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -56,17 +61,41 @@ Style to emulate: `;
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     
-    setIsGenerating(true);
+    setIsEnhancing(true);
     setError(null);
     setGeneratedImage(null);
 
-    const finalPrompt = isUiMode ? `${UI_DESIGN_PROMPT_PREFIX}${prompt}` : prompt;
+    let finalPrompt = isUiMode ? `${UI_DESIGN_PROMPT_PREFIX}${prompt}` : prompt;
 
     try {
-      const response = await fetch('/api/generate', {
+      // Step 1: Enhance Prompt using Gemma 3 27B (via proxy)
+      const enhanceRes = await fetch('/api/enhance-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: finalPrompt }),
+      });
+
+      if (enhanceRes.ok) {
+        const enhanceData = await enhanceRes.json();
+        if (enhanceData.enhancedPrompt) {
+          finalPrompt = enhanceData.enhancedPrompt;
+        }
+      } else {
+        console.warn("Prompt enhancement failed, using original prompt.");
+      }
+    } catch (err) {
+      console.warn("Prompt enhancement error:", err);
+    }
+
+    setIsEnhancing(false);
+    setIsGenerating(true);
+
+    try {
+      // Step 2: Generate Image
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: finalPrompt, size: selectedSize }),
       });
 
       const text = await response.text();
@@ -180,30 +209,67 @@ Style to emulate: `;
         </div>
 
         {/* Generator Section */}
-        <div className="max-w-3xl mx-auto mb-24">
+        <div className="max-w-4xl mx-auto mb-24">
+          
+          {/* Size Selector */}
+          <div className="flex justify-center gap-4 mb-6">
+            {[
+              { label: "1:1 Square", value: "1024*1024" },
+              { label: "16:9 Wide", value: "1024*768" },
+              { label: "9:16 Tall", value: "768*1024" }
+            ].map((size) => (
+              <button
+                key={size.value}
+                onClick={() => setSelectedSize(size.value)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 border ${
+                  selectedSize === size.value 
+                    ? 'bg-neon-blue/20 border-neon-blue text-neon-blue shadow-[0_0_15px_rgba(0,255,255,0.3)]' 
+                    : 'glass border-white/10 text-white/50 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Maximize className="w-4 h-4" />
+                {size.label}
+              </button>
+            ))}
+          </div>
+
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass rounded-3xl p-2 flex flex-col md:flex-row gap-2 shadow-2xl shadow-black/50"
+            className="glass rounded-3xl p-2 flex flex-col md:flex-row gap-2 shadow-2xl shadow-black/50 relative overflow-hidden"
           >
+            {isEnhancing && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="absolute inset-0 z-10 bg-black/80 backdrop-blur-sm flex items-center justify-center gap-3 rounded-3xl"
+              >
+                <Cpu className="w-6 h-6 text-neon-purple animate-pulse" />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple font-bold tracking-widest uppercase text-sm">
+                  Bol-AI is enhancing your prompt...
+                </span>
+              </motion.div>
+            )}
             <input 
               type="text" 
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={isUiMode ? "Describe the UI style you want to recreate..." : "Describe what you want to see..."}
+              placeholder={isUiMode ? "Describe the UI style you want to recreate..." : "Describe what you want to see (any language)..."}
               className="flex-1 bg-transparent px-6 py-4 outline-none text-white placeholder:text-white/20 font-medium"
               onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+              disabled={isEnhancing || isGenerating}
             />
             <button 
               onClick={() => setIsUiMode(!isUiMode)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${isUiMode ? 'bg-neon-blue text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+              disabled={isEnhancing || isGenerating}
             >
               <LayoutGrid className="w-4 h-4" />
               UI MODE
             </button>
             <button 
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={isGenerating || isEnhancing}
               className="bg-gradient-to-r from-neon-blue to-neon-purple px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               {isGenerating ? (
