@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const EXAMPLE_IMAGES = [
   'v.png', 'v2.png', 'v3.png', 'v4.png', 'v5.png', 'v6.png',
@@ -18,6 +18,28 @@ export default function App() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUiMode, setIsUiMode] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  const nextGalleryImage = () => setGalleryIndex((prev) => (prev + 1) % EXAMPLE_IMAGES.length);
+  const prevGalleryImage = () => setGalleryIndex((prev) => (prev - 1 + EXAMPLE_IMAGES.length) % EXAMPLE_IMAGES.length);
+
+  const handleDownload = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `bol-ai-image-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Error downloading image:", error);
+      window.open(url, '_blank'); // Fallback
+    }
+  };
 
   const UI_DESIGN_PROMPT_PREFIX = `Analyze the uploaded UI design image carefully and generate a detailed, high-quality prompt that can be used to recreate a similar user interface design. Do not describe the image directly. Instead, create a prompt that includes:
 1. The overall theme (e.g. futuristic, minimal, modern, glassmorphism, cyberpunk).
@@ -136,10 +158,6 @@ Style to emulate: `;
           <a href="#gallery" className="hover:text-neon-blue transition-colors">Gallery</a>
           <a href="#" className="hover:text-neon-blue transition-colors">Pricing</a>
         </nav>
-
-        <button className="px-5 py-2 rounded-full glass text-sm font-semibold hover:bg-white/10 transition-all border-white/20">
-          Connect Wallet
-        </button>
       </header>
 
       <main className="container mx-auto px-6 pt-12 pb-24">
@@ -149,7 +167,7 @@ Style to emulate: `;
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-7xl font-display font-bold mb-6 leading-tight"
           >
-            Turn Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">Words</span> Into <br /> Visual Reality
+            Create Amazing <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">Images</span> With <br /> AI
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -157,7 +175,7 @@ Style to emulate: `;
             transition={{ delay: 0.1 }}
             className="text-white/50 text-lg max-w-2xl mx-auto"
           >
-            Experience the next generation of AI image generation. Fast, futuristic, and incredibly detailed.
+            Type what you want to see, and our advanced AI will create it for you instantly.
           </motion.p>
         </div>
 
@@ -215,7 +233,7 @@ Style to emulate: `;
                         <div className="w-16 h-16 border-4 border-neon-blue/20 border-t-neon-blue rounded-full animate-spin" />
                         <Sparkles className="absolute inset-0 m-auto text-neon-blue w-6 h-6 animate-pulse" />
                       </div>
-                      <p className="text-neon-blue font-medium tracking-widest uppercase text-xs">Synthesizing Reality...</p>
+                      <p className="text-neon-blue font-medium tracking-widest uppercase text-xs">Generating Image...</p>
                     </div>
                   ) : error ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
@@ -236,14 +254,12 @@ Style to emulate: `;
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-8">
                         <div className="flex justify-between items-center w-full">
                           <p className="text-sm text-white/70 line-clamp-1 max-w-[70%] italic">"{prompt}"</p>
-                          <a 
-                            href={generatedImage!} 
-                            download="bol-ai-gen.png"
-                            target="_blank"
-                            className="p-3 bg-white/10 backdrop-blur-md rounded-xl hover:bg-white/20 transition-colors"
+                          <button 
+                            onClick={() => handleDownload(generatedImage!)}
+                            className="p-3 bg-white/10 backdrop-blur-md rounded-xl hover:bg-white/20 transition-colors cursor-pointer"
                           >
                             <Download className="w-5 h-5" />
-                          </a>
+                          </button>
                         </div>
                       </div>
                     </>
@@ -258,31 +274,65 @@ Style to emulate: `;
         <section id="gallery" className="mt-32">
           <div className="flex items-center gap-4 mb-12">
             <LayoutGrid className="text-neon-purple w-6 h-6" />
-            <h3 className="text-3xl font-display font-bold">Community Showcase</h3>
+            <h3 className="text-3xl font-display font-bold">Gallery</h3>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {EXAMPLE_IMAGES.map((img, idx) => (
-              <motion.div 
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.05 }}
-                className="group relative aspect-square rounded-2xl overflow-hidden glass hover:border-neon-blue/50 transition-all"
-              >
-                <img 
-                  src={`/examples/${img}`} 
-                  alt={`Example ${idx + 1}`}
-                  className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://picsum.photos/seed/ai${idx}/600/600`;
-                  }}
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-0 bg-neon-blue/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </motion.div>
-            ))}
+          <div className="relative w-full h-[500px] flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
+            {/* Left Button */}
+            <button onClick={prevGalleryImage} className="absolute left-4 md:left-12 z-50 p-4 glass rounded-full hover:bg-white/10 transition-colors">
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+
+            <div className="relative w-[280px] h-[280px] md:w-[400px] md:h-[400px] flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
+              <AnimatePresence initial={false}>
+                {EXAMPLE_IMAGES.map((img, idx) => {
+                  let offset = idx - galleryIndex;
+                  if (offset > EXAMPLE_IMAGES.length / 2) offset -= EXAMPLE_IMAGES.length;
+                  if (offset < -EXAMPLE_IMAGES.length / 2) offset += EXAMPLE_IMAGES.length;
+
+                  if (Math.abs(offset) > 3) return null;
+
+                  return (
+                    <motion.div
+                      key={idx}
+                      className="absolute w-full h-full rounded-3xl overflow-hidden glass border border-white/10 shadow-2xl"
+                      initial={false}
+                      animate={{
+                        x: offset * (window.innerWidth < 768 ? 120 : 220),
+                        scale: 1 - Math.abs(offset) * 0.2,
+                        zIndex: 10 - Math.abs(offset),
+                        rotateY: offset * -25,
+                        opacity: 1 - Math.abs(offset) * 0.25,
+                      }}
+                      transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
+                    >
+                      <img 
+                        src={`/examples/${img}`} 
+                        alt={`Gallery ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://picsum.photos/seed/ai${idx}/800/800`;
+                        }}
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity flex items-end p-6">
+                        <button 
+                          onClick={() => handleDownload(`/examples/${img}`)}
+                          className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors ml-auto"
+                        >
+                          <Download className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+
+            {/* Right Button */}
+            <button onClick={nextGalleryImage} className="absolute right-4 md:right-12 z-50 p-4 glass rounded-full hover:bg-white/10 transition-colors">
+              <ChevronRight className="w-6 h-6" />
+            </button>
           </div>
           
           <div className="mt-12 p-8 glass rounded-3xl border-dashed border-white/10 text-center">
