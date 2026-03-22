@@ -197,7 +197,6 @@ Style to emulate: `;
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/60">
           <a href="#" className="hover:text-neon-blue transition-colors">Generator</a>
           <a href="#gallery" className="hover:text-neon-blue transition-colors">Gallery</a>
-          <a href="#" className="hover:text-neon-blue transition-colors">Pricing</a>
         </nav>
       </header>
 
@@ -389,6 +388,12 @@ Style to emulate: `;
                         className="w-full h-auto max-h-[80vh] object-contain transition-transform duration-700 group-hover:scale-105"
                         referrerPolicy="no-referrer"
                       />
+                      <img 
+                        src="/bol-ai-logo.png" 
+                        alt="Bol-AI Logo" 
+                        className="absolute top-4 right-4 w-12 h-12 md:w-16 md:h-16 object-contain opacity-80 drop-shadow-lg pointer-events-none z-10" 
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-4 md:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 rounded-b-[2rem]">
                         <div className="flex flex-col gap-2 flex-1">
                           {generatedSize && (
@@ -422,83 +427,75 @@ Style to emulate: `;
             <h3 className="text-3xl font-display font-bold">Gallery</h3>
           </div>
           
-          <div className="relative w-full h-[500px] flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
-            {/* Left Button */}
-            <button onClick={prevGalleryImage} className="absolute left-4 md:left-12 z-50 p-4 glass rounded-full hover:bg-white/10 transition-colors">
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-
-            <div className="relative w-[280px] h-[280px] md:w-[400px] md:h-[400px] flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
-              <AnimatePresence initial={false}>
-                {EXAMPLE_IMAGES.map((img, idx) => {
-                  let offset = idx - galleryIndex;
-                  if (offset > EXAMPLE_IMAGES.length / 2) offset -= EXAMPLE_IMAGES.length;
-                  if (offset < -EXAMPLE_IMAGES.length / 2) offset += EXAMPLE_IMAGES.length;
-
-                  if (Math.abs(offset) > 2) return null;
-
-                  return (
-                    <motion.div
-                      key={idx}
-                      className="absolute w-full h-full rounded-3xl overflow-hidden glass border border-white/10 shadow-2xl"
-                      initial={false}
-                      animate={{
-                        x: offset * (window.innerWidth < 768 ? 120 : 220),
-                        scale: 1 - Math.abs(offset) * 0.2,
-                        zIndex: 10 - Math.abs(offset),
-                        rotateY: offset * -25,
-                        opacity: 1 - Math.abs(offset) * 0.25,
-                      }}
-                      transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
-                    >
-                      <img 
-                        src={`/examples/${img}`} 
-                        alt={`Gallery ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://picsum.photos/seed/ai${idx}/800/800`;
-                        }}
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex justify-end">
-                        <button 
-                          onClick={() => handleDownload(`/examples/${img}`)}
-                          className="p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors active:scale-95"
-                        >
-                          <Download className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-
-            {/* Right Button */}
-            <button onClick={nextGalleryImage} className="absolute right-4 md:right-12 z-50 p-4 glass rounded-full hover:bg-white/10 transition-colors">
-              <ChevronRight className="w-6 h-6" />
-            </button>
-          </div>
-          
-          <div className="mt-12 p-8 glass rounded-3xl border-dashed border-white/10 text-center">
-            <p className="text-white/40 text-sm mb-4">
-              To add your own images, place them in the <code className="text-neon-blue">public/examples/</code> folder with names like <code className="text-neon-blue">v.png</code>, <code className="text-neon-blue">v2.png</code>, etc.
-            </p>
+          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
+            {EXAMPLE_IMAGES.map((img, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ duration: 0.6, delay: (idx % 4) * 0.1, ease: "easeOut" }}
+                className="relative group break-inside-avoid rounded-3xl overflow-hidden glass border border-white/10 shadow-lg"
+              >
+                <img 
+                  src={`/examples/${img}`} 
+                  alt={`Gallery ${idx + 1}`}
+                  className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-105"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://picsum.photos/seed/ai${idx}/800/800`;
+                  }}
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-end p-4">
+                  <button 
+                    onClick={() => handleDownload(`/examples/${img}`)}
+                    className="p-3 bg-neon-blue text-black rounded-xl hover:bg-white transition-colors active:scale-95 shadow-[0_0_15px_rgba(0,255,255,0.4)]"
+                  >
+                    <Download className="w-5 h-5" />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-white/5 py-12">
-        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-3 opacity-50">
-            <Sparkles className="w-5 h-5" />
-            <span className="font-display font-bold">BOL-AI</span>
-          </div>
-          <p className="text-white/30 text-sm">© 2026 Bol-Ai IMG Generator. All rights reserved.</p>
-          <div className="flex gap-6 text-white/30 text-sm">
-            <a href="#" className="hover:text-white transition-colors">Twitter</a>
-            <a href="#" className="hover:text-white transition-colors">Discord</a>
-            <a href="#" className="hover:text-white transition-colors">API</a>
+      <footer className="border-t border-white/10 py-20 mt-32 bg-black/40 backdrop-blur-xl">
+        <div className="container mx-auto px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center md:text-left"
+          >
+            <div>
+              <h4 className="text-3xl md:text-4xl font-display font-bold text-neon-blue mb-6">About Us</h4>
+              <p className="text-white/60 text-lg leading-relaxed">
+                Bol-AI is a cutting-edge AI image generation platform. We empower creators to turn their imagination into stunning visual masterpieces instantly using advanced AI models.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-3xl md:text-4xl font-display font-bold text-neon-purple mb-6">Privacy Policy</h4>
+              <p className="text-white/60 text-lg leading-relaxed">
+                Your privacy is our priority. We do not store your generated images without permission, and your prompts are processed securely. Read our full policy to learn more.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-3xl md:text-4xl font-display font-bold text-white mb-6">Contact Us</h4>
+              <p className="text-white/60 text-lg leading-relaxed mb-4">
+                Have questions or need support? Reach out to us directly!
+              </p>
+              <a href="mailto:vivekdalvi147@gmail.com" className="inline-block text-xl md:text-2xl font-bold text-neon-blue hover:text-white transition-colors">
+                vivekdalvi147@gmail.com
+              </a>
+            </div>
+          </motion.div>
+          <div className="mt-20 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-3 opacity-50">
+              <Sparkles className="w-6 h-6" />
+              <span className="font-display font-bold text-xl">BOL-AI</span>
+            </div>
+            <p className="text-white/40 text-base">© 2026 Bol-Ai IMG Generator. All rights reserved.</p>
           </div>
         </div>
       </footer>
