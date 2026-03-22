@@ -1,0 +1,5 @@
+{
+  "name": "Bol-Ai IMG generator",
+  "description": "A futuristic AI text-to-image generator powered by ModelScope Z-Image-Turbo.",
+  "requestFramePermissions": []
+}
