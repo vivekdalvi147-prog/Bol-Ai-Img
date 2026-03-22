@@ -234,14 +234,14 @@ Style to emulate: `;
                 <button
                   key={size.value}
                   onClick={() => setSelectedSize(size.value)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                  className={`px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 ${
                     selectedSize === size.value 
                       ? 'bg-neon-blue text-black shadow-[0_0_15px_rgba(0,255,255,0.4)]' 
                       : 'text-white/50 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  <Maximize className="w-4 h-4" />
-                  <span className="hidden sm:inline">{size.label}</span>
+                  <Maximize className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
+                  <span className="whitespace-nowrap">{size.label}</span>
                 </button>
               ))}
             </div>
