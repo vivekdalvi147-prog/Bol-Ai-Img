@@ -5,10 +5,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2 } from 'lucide-react';
 import { auth, googleProvider, db } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, doc, getDoc, orderBy } from 'firebase/firestore';
 
 // Add your example image URLs here! You can use local paths or full URLs.
 const EXAMPLE_IMAGES = [
@@ -36,6 +36,10 @@ export default function App() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [isLoginSliderOpen, setIsLoginSliderOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'generator' | 'gallery' | 'my-creations'>('generator');
+  const [myImages, setMyImages] = useState<any[]>([]);
+  const [sharedImage, setSharedImage] = useState<any>(null);
   const [generationsCount, setGenerationsCount] = useState(() => {
     const saved = localStorage.getItem('bol_ai_generations');
     return saved ? parseInt(saved, 10) : 0;
@@ -47,6 +51,51 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareId = params.get('share');
+    if (shareId) {
+      getDoc(doc(db, 'generations', shareId)).then(docSnap => {
+        if (docSnap.exists()) {
+          setSharedImage({ id: docSnap.id, ...docSnap.data() });
+        }
+      }).catch(console.error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user && activeTab === 'my-creations') {
+      fetchMyImages();
+    }
+  }, [user, activeTab]);
+
+  const fetchMyImages = async () => {
+    if (!user) return;
+    try {
+      const q = query(collection(db, 'generations'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      setMyImages(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) {
+      console.error("Failed to fetch my images:", e);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this image?')) return;
+    try {
+      await deleteDoc(doc(db, 'generations', id));
+      setMyImages(prev => prev.filter(img => img.id !== id));
+    } catch (e) {
+      console.error("Failed to delete image:", e);
+    }
+  };
+
+  const handleShare = (id: string) => {
+    const url = `${window.location.origin}/?share=${id}`;
+    navigator.clipboard.writeText(url);
+    alert('Link copied to clipboard! Anyone with this link can view the image on Bol-AI.');
+  };
 
   useEffect(() => {
     localStorage.setItem('bol_ai_generations', generationsCount.toString());
@@ -233,13 +282,30 @@ Style to emulate: `;
             if (!user) {
               setGenerationsCount(prev => prev + 1);
             } else {
-              // Save to Firestore for logged-in users
+              // Upload to ImgBB for logged-in users
+              let finalDisplayUrl = finalImageUrl;
+              try {
+                const imgbbRes = await fetch('/api/upload-imgbb', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ imageUrl: finalImageUrl })
+                });
+                const imgbbData = await imgbbRes.json();
+                if (imgbbData.success) {
+                  finalDisplayUrl = imgbbData.data.url;
+                  setGeneratedImage(finalDisplayUrl); // Update UI with ImgBB URL
+                }
+              } catch (e) {
+                console.error("ImgBB Upload Failed", e);
+              }
+
+              // Save to Firestore
               try {
                 await addDoc(collection(db, 'generations'), {
                   userId: user.uid,
                   userEmail: user.email,
                   prompt: finalPrompt,
-                  imageUrl: finalImageUrl,
+                  imageUrl: finalDisplayUrl,
                   size: selectedSize,
                   createdAt: serverTimestamp()
                 });
@@ -291,15 +357,19 @@ Style to emulate: `;
           </h1>
         </motion.div>
 
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 md:gap-8">
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/60">
-            <a href="#" className="hover:text-neon-blue transition-colors">Generator</a>
-            <a href="#gallery" className="hover:text-neon-blue transition-colors">Gallery</a>
+            <button onClick={() => setActiveTab('generator')} className={`transition-colors ${activeTab === 'generator' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>Generator</button>
+            <button onClick={() => setActiveTab('gallery')} className={`transition-colors ${activeTab === 'gallery' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>Gallery</button>
+            {user && (
+              <button onClick={() => setActiveTab('my-creations')} className={`transition-colors ${activeTab === 'my-creations' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>My Creations</button>
+            )}
           </nav>
           
           <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-4"
           >
             <button 
               onClick={() => setIsLoginSliderOpen(true)}
@@ -311,6 +381,9 @@ Style to emulate: `;
                 <UserCircle className="w-6 h-6 text-neon-blue" />
               )}
               <span className="hidden sm:inline font-medium">{user ? user.displayName?.split(' ')[0] : 'Login'}</span>
+            </button>
+            <button onClick={() => setIsMenuOpen(true)} className="p-2 text-white/60 hover:text-white transition-colors">
+              <Menu className="w-6 h-6" />
             </button>
           </motion.div>
         </div>
@@ -336,7 +409,8 @@ Style to emulate: `;
         </div>
 
         {/* Generator Section */}
-        <div className="max-w-4xl mx-auto mb-24">
+        {activeTab === 'generator' && (
+          <div className="max-w-4xl mx-auto mb-24">
           
           {/* Controls: Size Selector & Enhance Toggle */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
@@ -513,7 +587,9 @@ Style to emulate: `;
                       <img 
                         src={generatedImage!} 
                         alt="Generated" 
-                        className="w-full h-auto max-h-[80vh] object-contain transition-transform duration-700 group-hover:scale-105"
+                        className="w-full h-auto max-h-[80vh] object-contain transition-transform duration-700 group-hover:scale-105 pointer-events-none select-none"
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
+                        onContextMenu={(e) => e.preventDefault()}
                         referrerPolicy="no-referrer"
                       />
                       <img 
@@ -547,9 +623,11 @@ Style to emulate: `;
             )}
           </AnimatePresence>
         </div>
+        )}
 
         {/* Gallery Section */}
-        <section id="gallery" className="mt-32">
+        {activeTab === 'gallery' && (
+        <section id="gallery" className="mt-12">
           <div className="flex items-center gap-4 mb-12">
             <LayoutGrid className="text-neon-purple w-6 h-6" />
             <h3 className="text-3xl font-display font-bold">Gallery</h3>
@@ -589,73 +667,198 @@ Style to emulate: `;
             ))}
           </div>
         </section>
+        )}
+
+        {/* My Creations Section */}
+        {activeTab === 'my-creations' && (
+          <section id="my-creations" className="mt-12">
+            <div className="flex items-center gap-4 mb-12">
+              <ImageIcon className="text-neon-blue w-6 h-6" />
+              <h3 className="text-3xl font-display font-bold">My Creations</h3>
+            </div>
+            
+            {myImages.length === 0 ? (
+              <div className="text-center py-20 bg-white/5 rounded-3xl border border-white/10">
+                <ImageIcon className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                <p className="text-white/50 text-lg">You haven't generated any images yet.</p>
+                <button onClick={() => setActiveTab('generator')} className="mt-6 px-6 py-2 bg-neon-blue/20 text-neon-blue rounded-xl hover:bg-neon-blue/30 transition-colors">Go to Generator</button>
+              </div>
+            ) : (
+              <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
+                {myImages.map((img, idx) => (
+                  <motion.div
+                    key={img.id}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: (idx % 4) * 0.1 }}
+                    className="relative group break-inside-avoid rounded-3xl overflow-hidden glass border border-white/10 shadow-lg"
+                  >
+                    <img 
+                      src={img.imageUrl} 
+                      alt={img.prompt}
+                      className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-105 pointer-events-none select-none"
+                      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
+                      onContextMenu={(e) => e.preventDefault()}
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleShare(img.id)} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md transition-colors" title="Share">
+                          <Share2 className="w-4 h-4 text-white" />
+                        </button>
+                        <button onClick={() => handleDelete(img.id)} className="p-2 bg-red-500/20 hover:bg-red-500/40 rounded-xl backdrop-blur-md transition-colors" title="Delete">
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      </div>
+                      <div>
+                        <p className="text-xs text-white/70 line-clamp-2 mb-3">{img.prompt}</p>
+                        <button 
+                          onClick={() => handleDownload(img.imageUrl)}
+                          className="w-full py-2 bg-neon-blue text-black font-bold rounded-xl hover:bg-white transition-colors flex items-center justify-center gap-2 text-sm"
+                        >
+                          <Download className="w-4 h-4" /> Download
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </main>
 
-      <footer className="border-t border-white/10 py-32 mt-32 bg-black/60 backdrop-blur-2xl relative overflow-hidden">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-neon-blue/5 blur-[150px] rounded-full" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-neon-purple/5 blur-[150px] rounded-full" />
+      <footer className="border-t border-white/10 py-12 mt-32 bg-black/60 backdrop-blur-2xl relative overflow-hidden">
+        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-3">
+            <Sparkles className="text-neon-blue w-5 h-5" />
+            <span className="font-display font-bold text-xl">BOL-<span className="text-neon-blue">AI</span></span>
+          </div>
+          <p className="text-white/40 text-sm">© 2026 Bol-AI. All rights reserved.</p>
         </div>
-        <div className="container mx-auto px-6">
-          <motion.div 
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-20"
-          >
-            <div className="space-y-8">
-              <h4 className="text-4xl md:text-5xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-white mb-8">About Us</h4>
-              <p className="text-white/70 text-xl leading-relaxed font-medium">
-                Bol-AI is the world's most advanced AI image generation powerhouse. We bridge the gap between human imagination and digital reality, providing creators with the tools to manifest their visions in stunning 8K resolution instantly.
-              </p>
-              <div className="flex gap-4">
-                <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-neon-blue/20 hover:border-neon-blue transition-all cursor-pointer">
-                  <Sparkles className="w-5 h-5 text-neon-blue" />
+      </footer>
+
+      {/* Sidebar Menu */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMenuOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 left-0 h-full w-full max-w-sm bg-black/90 backdrop-blur-2xl border-r border-white/10 z-50 p-8 flex flex-col shadow-[20px_0_50px_rgba(0,0,0,0.5)]"
+            >
+              <button 
+                onClick={() => setIsMenuOpen(false)}
+                className="absolute top-6 right-6 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="mt-12 flex flex-col gap-8 flex-1 overflow-y-auto pr-4 custom-scrollbar">
+                <div className="flex items-center gap-3 mb-4 shrink-0">
+                  <div className="w-12 h-12 bg-gradient-to-br from-neon-blue to-neon-purple rounded-xl flex items-center justify-center shadow-lg shadow-neon-blue/20">
+                    <Sparkles className="text-white w-6 h-6" />
+                  </div>
+                  <h2 className="text-3xl font-display font-bold tracking-tight">
+                    BOL-<span className="text-neon-blue">AI</span>
+                  </h2>
                 </div>
-                <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-neon-purple/20 hover:border-neon-purple transition-all cursor-pointer">
-                  <Cpu className="w-5 h-5 text-neon-purple" />
+
+                <nav className="flex flex-col gap-4 text-lg font-medium text-white/70 shrink-0">
+                  <button onClick={() => { setActiveTab('generator'); setIsMenuOpen(false); }} className="text-left hover:text-neon-blue transition-colors py-2">Generator</button>
+                  <button onClick={() => { setActiveTab('gallery'); setIsMenuOpen(false); }} className="text-left hover:text-neon-blue transition-colors py-2">Gallery</button>
+                  {user && (
+                    <button onClick={() => { setActiveTab('my-creations'); setIsMenuOpen(false); }} className="text-left hover:text-neon-blue transition-colors py-2">My Creations</button>
+                  )}
+                </nav>
+
+                <div className="h-px bg-white/10 my-2 shrink-0" />
+
+                <div className="flex flex-col gap-8 pb-8">
+                  <div className="space-y-4">
+                    <h4 className="text-2xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-white">About Us</h4>
+                    <p className="text-white/60 text-sm leading-relaxed">
+                      Bol-AI is the world's most advanced AI image generation powerhouse. We bridge the gap between human imagination and digital reality.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h4 className="text-2xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-purple to-white">Privacy Policy</h4>
+                    <p className="text-white/60 text-sm leading-relaxed">
+                      At Bol-AI, your creativity is private. We employ end-to-end encryption for your prompts and never store your generated masterpieces without your explicit consent.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h4 className="text-2xl font-display font-bold text-white">Contact Us</h4>
+                    <p className="text-white/60 text-sm leading-relaxed mb-2">
+                      Ready to take your creativity to the next level? Our elite support team is here to assist you 24/7.
+                    </p>
+                    <a href="mailto:vivekdalvi147@gmail.com" className="text-lg font-bold text-neon-blue hover:text-white transition-colors break-all">
+                      vivekdalvi147@gmail.com
+                    </a>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="space-y-8">
-              <h4 className="text-4xl md:text-5xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-purple to-white mb-8">Privacy Policy</h4>
-              <p className="text-white/70 text-xl leading-relaxed font-medium">
-                At Bol-AI, your creativity is private. We employ end-to-end encryption for your prompts and never store your generated masterpieces without your explicit consent. Your data remains yours, always.
-              </p>
-              <ul className="space-y-4 text-white/50 font-bold uppercase tracking-widest text-xs">
-                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-neon-blue" /> No Data Selling</li>
-                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-neon-purple" /> Secure Processing</li>
-                <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white" /> User Ownership</li>
-              </ul>
-            </div>
-            <div className="space-y-8">
-              <h4 className="text-4xl md:text-5xl font-display font-bold text-white mb-8">Contact Us</h4>
-              <p className="text-white/70 text-xl leading-relaxed font-medium mb-8">
-                Ready to take your creativity to the next level? Our elite support team is here to assist you 24/7.
-              </p>
-              <div className="glass p-8 rounded-[2rem] border-neon-blue/20 hover:border-neon-blue/50 transition-all group">
-                <p className="text-white/40 text-sm font-bold uppercase tracking-tighter mb-2">Direct Support Email</p>
-                <a href="mailto:vivekdalvi147@gmail.com" className="text-2xl md:text-3xl font-bold text-neon-blue group-hover:text-white transition-colors break-all">
-                  vivekdalvi147@gmail.com
-                </a>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Shared Image Modal */}
+      <AnimatePresence>
+        {sharedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          >
+            <button 
+              onClick={() => setSharedImage(null)}
+              className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="max-w-4xl w-full bg-black/50 border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row">
+              <div className="flex-1 relative bg-black/80 flex items-center justify-center p-4">
+                <img 
+                  src={sharedImage.imageUrl} 
+                  alt="Shared Image" 
+                  className="max-h-[70vh] w-auto object-contain pointer-events-none select-none"
+                  style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+              </div>
+              <div className="w-full md:w-80 p-8 flex flex-col justify-between bg-white/5 backdrop-blur-xl border-l border-white/10">
+                <div>
+                  <h3 className="text-xl font-bold mb-4 text-neon-blue">Shared Creation</h3>
+                  <p className="text-white/80 text-sm italic mb-6">"{sharedImage.prompt}"</p>
+                  <div className="flex items-center gap-2 text-xs text-white/50 mb-8">
+                    <UserCircle className="w-4 h-4" />
+                    <span>Created by {sharedImage.userEmail?.split('@')[0] || 'Anonymous'}</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleDownload(sharedImage.imageUrl)}
+                  className="w-full py-3 bg-neon-blue text-black font-bold rounded-xl hover:bg-white transition-colors flex items-center justify-center gap-2"
+                >
+                  <Download className="w-5 h-5" /> Download Image
+                </button>
               </div>
             </div>
           </motion.div>
-          <div className="mt-32 pt-12 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-neon-blue to-neon-purple rounded-2xl flex items-center justify-center shadow-lg shadow-neon-blue/20">
-                <Sparkles className="text-white w-7 h-7" />
-              </div>
-              <span className="font-display font-bold text-3xl tracking-tighter">BOL-<span className="text-neon-blue">AI</span></span>
-            </div>
-            <div className="flex flex-col items-center md:items-end gap-2">
-              <p className="text-white/40 text-lg font-medium">© 2026 Bol-Ai IMG Generator. All rights reserved.</p>
-              <p className="text-white/20 text-sm uppercase tracking-[0.3em]">Built for the future of creativity</p>
-            </div>
-          </div>
-        </div>
-      </footer>
+        )}
+      </AnimatePresence>
 
       {/* Login Slider */}
       <AnimatePresence>
