@@ -83,9 +83,19 @@ export default function App() {
   const fetchMyImages = async () => {
     if (!user) return;
     try {
-      const q = query(collection(db, 'generations'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+      // Removed orderBy to avoid requiring a composite index in Firestore
+      const q = query(collection(db, 'generations'), where('userId', '==', user.uid));
       const snapshot = await getDocs(q);
-      setMyImages(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      const images = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      // Sort client-side (newest first)
+      images.sort((a: any, b: any) => {
+        const timeA = a.createdAt?.toMillis?.() || 0;
+        const timeB = b.createdAt?.toMillis?.() || 0;
+        return timeB - timeA;
+      });
+      
+      setMyImages(images);
     } catch (e) {
       console.error("Failed to fetch my images:", e);
     }
