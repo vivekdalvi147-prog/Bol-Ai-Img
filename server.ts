@@ -92,10 +92,10 @@ app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
 app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
   try {
     const { prompt } = req.body;
-    const apiKey = process.env.TXT_MODEL_VIVEK_BOL_AI;
+    const apiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI;
 
     if (!apiKey) {
-      return res.status(400).json({ error: "API Key missing (TXT_MODEL_VIVEK_BOL_AI). Please add it in AI Studio Secrets." });
+      return res.status(400).json({ error: "API Key missing (BOL_AI_API_KEY). Please add it in AI Studio Secrets." });
     }
 
     const ai = new GoogleGenAI({ apiKey });

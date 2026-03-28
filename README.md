@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Bol-AI: Advanced Image Generation
 
-# Run and deploy your AI Studio app
+![Bol-AI Banner](https://i.ibb.co/s9X3yR1f/In-Shot-20260117-214933669.jpg)
 
-This contains everything you need to run your app locally.
+Bol-AI is a state-of-the-art image generation platform designed for high-performance creative workflows. Leveraging proprietary 8K rendering technology, Bol-AI transforms text prompts into stunning visual masterpieces instantly.
 
-View your app in AI Studio: https://ai.studio/apps/fca1ffd5-f866-4344-9bd2-46bf69252dec
+## Key Features
+- **Proprietary 8K Engine**: High-fidelity image generation with unmatched detail.
+- **Smart Prompt Enhancement**: Automatically refines user prompts for optimal artistic results.
+- **Flexible Aspect Ratios**: Choose from 1:1, 16:9, or 9:16 to fit your project needs.
+- **Multi-Quality Rendering**: Select between Standard, HD, and Ultra quality modes.
+- **Privacy-Centric**: Secure and private generation environment.
 
-## Run Locally
+## Technology Stack
+- **Frontend**: React, Tailwind CSS, Motion (Framer Motion)
+- **Backend**: Node.js, Express
+- **Database**: Firebase Firestore
+- **Authentication**: Firebase Auth (Google Login)
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Developed with ❤️ by **Vivek Dalvi**.

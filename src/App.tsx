@@ -537,9 +537,11 @@ Style to emulate: `;
               <div className="max-w-4xl mx-auto mb-24">
           
           {/* Controls: Size Selector & Quality & Enhance Toggle */}
-          <div className="flex flex-col gap-4 mb-6">
-            <div className="flex flex-wrap justify-between items-center gap-4">
-              <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 shadow-lg overflow-x-auto scrollbar-hide">
+          <div className="flex flex-col gap-5 mb-8 max-w-md mx-auto">
+            {/* Size Selector */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold ml-2">Aspect Ratio</span>
+              <div className="flex gap-2 bg-black/40 p-1.5 rounded-[1.5rem] border border-white/5 shadow-2xl overflow-x-auto scrollbar-hide backdrop-blur-xl">
                 {[
                   { label: "1:1", value: "1024*1024" },
                   { label: "16:9", value: "1280*720" },
@@ -548,19 +550,23 @@ Style to emulate: `;
                   <button
                     key={size.value}
                     onClick={() => setSelectedSize(size.value)}
-                    className={`px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                    className={`flex-1 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap ${
                       selectedSize === size.value 
-                        ? 'bg-neon-blue text-black shadow-[0_0_15px_rgba(0,255,255,0.4)]' 
-                        : 'text-white/50 hover:text-white hover:bg-white/10'
+                        ? 'bg-gradient-to-br from-neon-blue to-cyan-500 text-black shadow-[0_0_25px_rgba(0,255,255,0.5)] scale-[1.02]' 
+                        : 'text-white/40 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    <Maximize className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
+                    <Maximize className="w-3.5 h-3.5 shrink-0" />
                     <span>{size.label}</span>
                   </button>
                 ))}
               </div>
+            </div>
 
-              <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 shadow-lg overflow-x-auto scrollbar-hide">
+            {/* Quality Selector */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold ml-2">Render Quality</span>
+              <div className="flex gap-2 bg-black/40 p-1.5 rounded-[1.5rem] border border-white/5 shadow-2xl overflow-x-auto scrollbar-hide backdrop-blur-xl">
                 {[
                   { label: "Standard", value: "standard" },
                   { label: "HD", value: "hd" },
@@ -569,34 +575,39 @@ Style to emulate: `;
                   <button
                     key={q.value}
                     onClick={() => setQuality(q.value)}
-                    className={`px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+                    className={`flex-1 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap ${
                       quality === q.value 
-                        ? 'bg-neon-purple text-white shadow-[0_0_15px_rgba(176,38,255,0.4)]' 
-                        : 'text-white/50 hover:text-white hover:bg-white/10'
+                        ? 'bg-gradient-to-br from-neon-purple to-purple-600 text-white shadow-[0_0_25px_rgba(176,38,255,0.5)] scale-[1.02]' 
+                        : 'text-white/40 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    <Zap className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
+                    <Zap className="w-3.5 h-3.5 shrink-0" />
                     <span>{q.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="flex justify-end">
+            {/* Enhance Toggle */}
+            <div className="flex justify-center">
               <button 
                 onClick={() => setIsEnhanceEnabled(!isEnhanceEnabled)} 
-                className={`flex items-center gap-3 px-5 py-2.5 rounded-2xl border transition-all duration-300 ${
+                className={`flex items-center justify-between w-full px-6 py-3.5 rounded-[1.5rem] border transition-all duration-500 group ${
                   isEnhanceEnabled 
-                    ? 'bg-neon-purple/10 border-neon-purple/50 shadow-[0_0_20px_rgba(176,38,255,0.2)]' 
-                    : 'glass border-white/10 hover:bg-white/5'
+                    ? 'bg-neon-purple/5 border-neon-purple/30 shadow-[0_10px_30px_rgba(176,38,255,0.15)]' 
+                    : 'bg-black/40 border-white/5 hover:bg-white/5'
                 }`}
               >
-                <Wand2 className={`w-4 h-4 ${isEnhanceEnabled ? 'text-neon-purple animate-pulse' : 'text-white/40'}`} />
-                <span className={`text-sm font-bold ${isEnhanceEnabled ? 'text-neon-purple' : 'text-white/50'}`}>
-                  Bol-AI Enhance
-                </span>
-                <div className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-300 ${isEnhanceEnabled ? 'bg-neon-purple' : 'bg-white/20'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 shadow-sm ${isEnhanceEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors duration-300 ${isEnhanceEnabled ? 'bg-neon-purple/20' : 'bg-white/5'}`}>
+                    <Wand2 className={`w-4 h-4 ${isEnhanceEnabled ? 'text-neon-purple animate-pulse' : 'text-white/40'}`} />
+                  </div>
+                  <span className={`text-sm font-bold tracking-wider ${isEnhanceEnabled ? 'text-neon-purple' : 'text-white/40'}`}>
+                    Bol-AI Enhance
+                  </span>
+                </div>
+                <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-500 relative ${isEnhanceEnabled ? 'bg-neon-purple' : 'bg-white/10'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-all duration-500 shadow-[0_0_10px_rgba(255,255,255,0.5)] ${isEnhanceEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
                 </div>
               </button>
             </div>
