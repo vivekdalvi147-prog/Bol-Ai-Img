@@ -254,6 +254,12 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    
+    // Clean route for admin panel
+    app.get('/admin', (req, res) => {
+      res.sendFile(path.join(distPath, 'admin.html'));
+    });
+
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
