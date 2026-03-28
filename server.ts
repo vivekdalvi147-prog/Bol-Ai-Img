@@ -16,7 +16,7 @@ interface RateLimitData {
 }
 const ipRequests = new Map<string, RateLimitData>();
 const WINDOW_MS = 60000; // 1 minute window
-const DEFAULT_MAX_REQUESTS = 5; // 5 requests per minute
+const DEFAULT_MAX_REQUESTS = 10; // 10 requests per minute
 
 const rateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
