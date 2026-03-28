@@ -26,6 +26,7 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isEnhanceEnabled, setIsEnhanceEnabled] = useState(true);
+  const [lastGeneratedId, setLastGeneratedId] = useState<string | null>(null);
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const [enhancedPrompt, setEnhancedPrompt] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState("1024*1024");
@@ -406,6 +407,7 @@ Style to emulate: `;
               };
               const docRef = await addDoc(collection(db, 'generations'), newGen);
               console.log("Image saved to Firestore successfully!");
+              setLastGeneratedId(docRef.id);
               if (user) {
                 setMyImages(prev => [{ id: docRef.id, ...newGen }, ...prev]);
               }
@@ -467,9 +469,6 @@ Style to emulate: `;
           className="flex items-center gap-3 cursor-pointer"
           onClick={() => setActivePage('home')}
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-neon-blue to-neon-purple rounded-xl flex items-center justify-center shadow-lg shadow-neon-blue/20">
-            <Sparkles className="text-white w-6 h-6" />
-          </div>
           <h1 className="text-2xl font-display font-bold tracking-tight">
             BOL-<span className="text-neon-blue">AI</span>
           </h1>
@@ -776,7 +775,7 @@ Style to emulate: `;
                       <img 
                         src={generatedImage!} 
                         alt="Generated" 
-                        className="w-full h-auto max-h-[80vh] object-contain transition-transform duration-700 group-hover:scale-105 pointer-events-none select-none"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none select-none"
                         style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
                         onContextMenu={(e) => e.preventDefault()}
                         referrerPolicy="no-referrer"
@@ -797,13 +796,24 @@ Style to emulate: `;
                           )}
                           <p className="text-sm text-white/90 line-clamp-3 italic font-medium">"{enhancedPrompt || prompt}"</p>
                         </div>
-                        <button 
-                          onClick={() => handleDownload(generatedImage!)}
-                          className="w-full sm:w-auto px-8 py-3 bg-neon-blue text-black font-bold rounded-2xl hover:bg-white hover:text-black transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,255,0.5)] hover:shadow-[0_0_30px_rgba(255,255,255,0.8)] active:scale-95 shrink-0"
-                        >
-                          <Download className="w-5 h-5" />
-                          Download
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <button 
+                            onClick={() => handleDownload(generatedImage!)}
+                            className="w-full sm:w-auto px-8 py-3 bg-neon-blue text-black font-bold rounded-2xl hover:bg-white hover:text-black transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,255,0.5)] hover:shadow-[0_0_30px_rgba(255,255,255,0.8)] active:scale-95 shrink-0"
+                          >
+                            <Download className="w-5 h-5" />
+                            Download
+                          </button>
+                          {lastGeneratedId && (
+                            <button 
+                              onClick={() => handleShare(lastGeneratedId)}
+                              className="w-full sm:w-auto px-8 py-3 bg-white/10 text-white font-bold rounded-2xl hover:bg-white/20 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 border border-white/10 active:scale-95 shrink-0"
+                            >
+                              <Share2 className="w-5 h-5" />
+                              Share
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </>
                   )}

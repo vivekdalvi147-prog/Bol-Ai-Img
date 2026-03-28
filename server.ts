@@ -172,6 +172,7 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
     };
 
     // 1. Image Generation Task
+    const [width, height] = imageSize.split('*').map(Number);
     const response = await fetchWithRetry(`${baseUrl}v1/images/generations`, {
       method: 'POST',
       headers: { ...commonHeaders, "X-ModelScope-Async-Mode": "true" },
@@ -179,7 +180,10 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
         model: "Tongyi-MAI/Z-Image-Turbo",
         prompt: userPrompt,
         parameters: {
-          size: imageSize.replace(':', '*') // Ensure format is width*height
+          n: 1,
+          size: `${width}*${height}`,
+          width: width,
+          height: height
         }
       })
     }, 3, 2000);
