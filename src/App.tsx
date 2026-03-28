@@ -173,63 +173,37 @@ export default function App() {
   const nextGalleryImage = () => setGalleryIndex((prev) => (prev + 1) % exampleImages.length);
   const prevGalleryImage = () => setGalleryIndex((prev) => (prev - 1 + exampleImages.length) % exampleImages.length);
 
-  const addWatermark = async (url: string): Promise<string> => {
+  const fetchAsBase64 = async (url: string): Promise<string> => {
     try {
       const downloadUrl = `/api/download?url=${encodeURIComponent(url)}`;
       const response = await fetch(downloadUrl);
       if (!response.ok) throw new Error("Failed to fetch image");
-      
       const blob = await response.blob();
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      const imgUrl = URL.createObjectURL(blob);
-      
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = imgUrl;
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
       });
-
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error("Could not get canvas context");
-
-      ctx.drawImage(img, 0, 0);
-
-      const fontSize = Math.max(20, Math.floor(img.width / 25));
-      ctx.font = `bold ${fontSize}px sans-serif`;
-      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-      ctx.textAlign = "right";
-      ctx.textBaseline = "bottom";
-      
-      ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
-
-      const padding = fontSize;
-      ctx.fillText("Bol-Ai", img.width - padding, img.height - padding);
-
-      const base64 = canvas.toDataURL('image/png');
-      URL.revokeObjectURL(imgUrl);
-      return base64;
     } catch (error) {
-      console.error("Watermark error:", error);
+      console.error("Fetch base64 error:", error);
       throw error;
     }
   };
 
   const handleDownload = async (url: string) => {
     try {
-      const watermarkedBase64 = await addWatermark(url);
+      const response = await fetch(`/api/download?url=${encodeURIComponent(url)}`);
+      if (!response.ok) throw new Error("Failed to fetch image");
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = watermarkedBase64;
+      link.href = downloadUrl;
       link.download = `bol-ai-${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error("Download error:", error);
       window.open(url, '_blank');
@@ -376,12 +350,11 @@ Style to emulate: `;
             const endTime = Date.now();
             const durationMs = endTime - startTime;
 
-            // Add Watermark and Upload to ImgBB
+            // Upload to ImgBB
             let finalDisplayUrl = finalImageUrl;
             try {
-              // Add watermark before uploading to ImgBB
-              const watermarkedBase64 = await addWatermark(finalImageUrl);
-              const base64Data = watermarkedBase64.split(',')[1]; // Strip prefix
+              const base64DataWithPrefix = await fetchAsBase64(finalImageUrl);
+              const base64Data = base64DataWithPrefix.split(',')[1]; // Strip prefix
 
               const imgbbRes = await fetch('/api/upload-imgbb', {
                 method: 'POST',
@@ -393,10 +366,10 @@ Style to emulate: `;
                 finalDisplayUrl = imgbbData.data.url;
               }
             } catch (e) {
-              console.error("Watermarking or ImgBB Upload Failed", e);
+              console.error("ImgBB Upload Failed", e);
             }
 
-            // Update UI with the FINAL watermarked URL
+            // Update UI with the FINAL URL
             setGeneratedImage(finalDisplayUrl);
             setGeneratedSize(selectedSize);
             isComplete = true;
@@ -912,8 +885,8 @@ Style to emulate: `;
                       onContextMenu={(e) => e.preventDefault()}
                       referrerPolicy="no-referrer"
                     />
-                    {/* Desktop Hover Overlay - Hidden as per user request */}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden flex flex-col justify-between p-4">
+                    {/* Controls Overlay */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
                       <div className="flex justify-end gap-2">
                         <button onClick={() => handleShare(img.id)} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md transition-colors" title="Share">
                           <Share2 className="w-4 h-4 text-white" />
@@ -932,8 +905,8 @@ Style to emulate: `;
                         </button>
                       </div>
                     </div>
-                    {/* Mobile Controls (Always Visible) */}
-                    <div className="p-3 bg-black/40 backdrop-blur-md border-t border-white/5 md:hidden">
+                    {/* Mobile Controls (Always Visible on small screens) */}
+                    <div className="p-3 bg-black/40 backdrop-blur-md border-t border-white/5 sm:hidden">
                       <div className="flex gap-2">
                         <button 
                           onClick={() => handleDownload(img.imageUrl)}
@@ -1101,12 +1074,12 @@ Style to emulate: `;
             >
               <X className="w-6 h-6" />
             </button>
-            <div className="max-w-5xl w-full bg-black/80 border border-white/10 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col md:flex-row relative max-h-[90vh] overflow-y-auto md:overflow-hidden">
-              <div className="w-full md:flex-1 relative bg-black flex items-center justify-center p-4 md:p-8 min-h-[300px] md:min-h-0">
+            <div className="max-w-5xl w-full bg-black/80 border border-white/10 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col md:flex-row relative max-h-[95vh] overflow-y-auto md:overflow-hidden">
+              <div className="w-full md:flex-1 relative bg-black flex items-center justify-center p-4 md:p-8 min-h-[40vh] md:min-h-0">
                 <img 
                   src={sharedImage.imageUrl} 
                   alt="Shared Image" 
-                  className="max-h-[50vh] md:max-h-[80vh] w-full object-contain rounded-2xl shadow-2xl"
+                  className="max-h-[60vh] md:max-h-[80vh] w-full object-contain rounded-2xl shadow-2xl"
                   onContextMenu={(e) => e.preventDefault()}
                 />
                 <div className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[10px] font-bold text-neon-blue uppercase tracking-widest">
@@ -1114,9 +1087,9 @@ Style to emulate: `;
                   Bol-AI Creation
                 </div>
               </div>
-              <div className="w-full md:w-[400px] p-6 md:p-12 flex flex-col justify-between bg-gradient-to-b from-white/5 to-transparent backdrop-blur-3xl border-t md:border-t-0 md:border-l border-white/10">
-                <div>
-                  <div className="flex items-center gap-3 mb-8">
+              <div className="w-full md:w-[400px] p-6 md:p-12 flex flex-col justify-between bg-gradient-to-b from-white/5 to-transparent backdrop-blur-3xl border-t md:border-t-0 md:border-l border-white/10 shrink-0">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-neon-blue/20 flex items-center justify-center border border-neon-blue/30">
                       <UserCircle className="w-6 h-6 text-neon-blue" />
                     </div>
@@ -1126,7 +1099,7 @@ Style to emulate: `;
                     </div>
                   </div>
                   
-                  <h3 className="text-2xl font-display font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-white">Shared Masterpiece</h3>
+                  <h3 className="text-2xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-white">Shared Masterpiece</h3>
                   <div className="relative">
                     <p className="text-white/70 text-sm leading-relaxed italic line-clamp-[10] relative z-10">
                       "{sharedImage.prompt}"
@@ -1135,7 +1108,7 @@ Style to emulate: `;
                   </div>
                 </div>
 
-                <div className="mt-12 space-y-4">
+                <div className="mt-8 space-y-4">
                   <button 
                     onClick={() => handleDownload(sharedImage.imageUrl)}
                     className="w-full py-4 bg-neon-blue text-black font-bold rounded-2xl hover:bg-white transition-all duration-300 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,255,255,0.3)] active:scale-95"

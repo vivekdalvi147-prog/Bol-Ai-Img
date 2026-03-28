@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=1280">
     <title>Bol-AI Admin Panel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -14,26 +14,7 @@
             color: #ffffff; 
             background-image: radial-gradient(circle at 50% 0%, #1a0b2e 0%, transparent 50%), radial-gradient(circle at 100% 100%, #001a33 0%, transparent 50%);
             background-attachment: fixed;
-        }
-        #desktop-only-warning {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: #050505;
-            z-index: 9999;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2rem;
-        }
-        @media (max-width: 1024px) {
-            #desktop-only-warning {
-                display: flex;
-            }
-            #login-screen, #admin-dashboard {
-                display: none !important;
-            }
+            min-width: 1200px;
         }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         .glass { 
@@ -43,9 +24,9 @@
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8); 
         }
         .tab-active { 
-            border-left: 3px solid #00f0ff; 
+            border-bottom: 3px solid #00f0ff; 
             color: #00f0ff; 
-            background: linear-gradient(to right, rgba(0, 240, 255, 0.1), transparent);
+            background: linear-gradient(to top, rgba(0, 240, 255, 0.1), transparent);
             transform: translateZ(10px);
         }
         .glass { 
@@ -65,12 +46,9 @@
         .neon-text-blue { color: #00f0ff; text-shadow: 0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(0, 240, 255, 0.2); }
         .neon-text-purple { color: #b026ff; text-shadow: 0 0 10px rgba(176, 38, 255, 0.5), 0 0 20px rgba(176, 38, 255, 0.2); }
         
-        @media (max-width: 768px) {
-            .tab-active {
-                border-left: none;
-                border-bottom: 3px solid #00f0ff;
-                background: linear-gradient(to top, rgba(0, 240, 255, 0.1), transparent);
-            }
+        .tab-active {
+            border-bottom: 3px solid #00f0ff;
+            background: linear-gradient(to top, rgba(0, 240, 255, 0.1), transparent);
         }
         .neon-border-blue { border: 1px solid rgba(0, 240, 255, 0.3); box-shadow: 0 0 15px rgba(0, 240, 255, 0.1); }
         .neon-border-purple { border: 1px solid rgba(176, 38, 255, 0.3); box-shadow: 0 0 15px rgba(176, 38, 255, 0.1); }
@@ -112,19 +90,14 @@
             transform: rotate(-90deg);
             transform-origin: 50% 50%;
         }
+
+        #desktop-only-overlay {
+            display: none;
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
-
-    <!-- Desktop Only Warning -->
-    <div id="desktop-only-warning">
-        <div class="glass p-8 rounded-3xl border border-neon-blue/30 max-w-sm">
-            <i data-lucide="monitor" class="w-16 h-16 text-neon-blue mx-auto mb-6"></i>
-            <h2 class="text-2xl font-bold neon-text-blue mb-4 uppercase tracking-widest">Desktop Only</h2>
-            <p class="text-white/60 text-sm leading-relaxed">The Bol-AI Admin Nexus is a high-precision tool designed for desktop environments. Please switch to a PC to access the system.</p>
-        </div>
-    </div>
-
+    <body class="min-h-screen flex flex-col">
+    
     <!-- Login Screen -->
     <div id="login-screen" class="flex-1 flex items-center justify-center p-4 relative z-10">
         <div class="glass p-10 rounded-3xl w-full max-w-md border border-neon-blue/30 relative overflow-hidden">
@@ -175,13 +148,13 @@
                     <h2 id="active-tab-title" class="text-4xl font-bold neon-text-blue uppercase tracking-widest">System Overview</h2>
                     
                     <!-- Horizontal Navigation -->
-                    <nav class="flex overflow-x-auto scrollbar-hide border-b border-white/10 gap-2 pb-1">
-                        <button data-tab="dashboard" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap tab-active font-bold tracking-wider uppercase text-xs flex items-center gap-2 rounded-t-xl"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Overview</button>
-                        <button data-tab="requests" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-xs flex items-center gap-2 rounded-t-xl"><i data-lucide="activity" class="w-4 h-4"></i> Traffic</button>
-                        <button data-tab="stats" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-xs flex items-center gap-2 rounded-t-xl"><i data-lucide="bar-chart-2" class="w-4 h-4"></i> Stats</button>
-                        <button data-tab="config" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-xs flex items-center gap-2 rounded-t-xl"><i data-lucide="sliders" class="w-4 h-4"></i> Image Config</button>
-                        <button data-tab="server" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-xs flex items-center gap-2 rounded-t-xl"><i data-lucide="server" class="w-4 h-4"></i> Hardware</button>
-                        <button data-tab="settings" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-xs flex items-center gap-2 rounded-t-xl"><i data-lucide="settings" class="w-4 h-4"></i> Settings</button>
+                    <nav class="flex overflow-x-auto scrollbar-hide border-b border-white/10 gap-4 pb-2">
+                        <button data-tab="dashboard" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap tab-active font-bold tracking-wider uppercase text-[11px] flex flex-col items-center gap-3 rounded-t-xl min-w-[120px]"><i data-lucide="layout-dashboard" class="w-7 h-7"></i> Overview</button>
+                        <button data-tab="requests" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-[11px] flex flex-col items-center gap-3 rounded-t-xl min-w-[120px]"><i data-lucide="activity" class="w-7 h-7"></i> Traffic</button>
+                        <button data-tab="stats" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-[11px] flex flex-col items-center gap-3 rounded-t-xl min-w-[120px]"><i data-lucide="bar-chart-2" class="w-7 h-7"></i> Stats</button>
+                        <button data-tab="config" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-[11px] flex flex-col items-center gap-3 rounded-t-xl min-w-[120px]"><i data-lucide="sliders" class="w-7 h-7"></i> Engine</button>
+                        <button data-tab="server" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-[11px] flex flex-col items-center gap-3 rounded-t-xl min-w-[120px]"><i data-lucide="server" class="w-7 h-7"></i> Hardware</button>
+                        <button data-tab="settings" class="tab-btn px-6 py-4 hover:bg-white/5 transition-all whitespace-nowrap font-bold tracking-wider uppercase text-[11px] flex flex-col items-center gap-3 rounded-t-xl min-w-[120px]"><i data-lucide="settings" class="w-7 h-7"></i> Settings</button>
                     </nav>
                 </div>
 
@@ -236,7 +209,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label class="block text-[10px] font-bold mb-2 text-white/40 uppercase tracking-widest">Rate Limit (Requests per Minute)</label>
-                                    <input type="number" id="config-rate-limit" value="5" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-neon-purple transition-all font-mono text-sm">
+                                    <input type="number" id="config-rate-limit" value="10" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-neon-purple transition-all font-mono text-sm">
                                     <p class="text-[9px] text-white/30 mt-2 italic">Maximum number of image generation requests a single user can send in one minute. (Prevents Spam/Abuse)</p>
                                 </div>
                                 <div>
@@ -256,7 +229,7 @@
                     <div class="flex justify-between items-end">
                         <div>
                             <h2 class="text-3xl font-bold neon-text-purple uppercase tracking-widest">Hardware Monitor</h2>
-                            <p class="text-white/50 text-sm mt-2 font-mono flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Core Engine: Bol-AI-img (Proprietary 8K)</p>
+                            <p class="text-white/50 text-sm mt-2 font-mono flex items-center gap-2">Core Engine: Bol-AI-img (Proprietary 8K)</p>
                         </div>
                         <div class="text-right">
                             <p class="text-white/50 text-xs uppercase tracking-widest font-bold mb-1">Server Uptime</p>
@@ -680,17 +653,13 @@
                 document.getElementById('stat-total-errors').textContent = errorCount;
                 
                 // Format Run Time
-                let runTimeText = '0s';
-                const totalSeconds = Math.floor(dailyRunTimeMs / 1000);
-                if (totalSeconds < 60) {
-                    runTimeText = `${totalSeconds}s`;
-                } else if (totalSeconds < 3600) {
-                    const mins = Math.floor(totalSeconds / 60);
-                    const secs = totalSeconds % 60;
-                    runTimeText = `${mins}m ${secs}s`;
+                let runTimeText = '0m';
+                const totalMinutes = Math.floor(dailyRunTimeMs / (1000 * 60));
+                if (totalMinutes < 60) {
+                    runTimeText = `${totalMinutes}m`;
                 } else {
-                    const hours = Math.floor(totalSeconds / 3600);
-                    const mins = Math.floor((totalSeconds % 3600) / 60);
+                    const hours = Math.floor(totalMinutes / 60);
+                    const mins = totalMinutes % 60;
                     runTimeText = `${hours}h ${mins}m`;
                 }
                 document.getElementById('daily-run-time').textContent = runTimeText;
