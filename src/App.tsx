@@ -310,6 +310,7 @@ export default function App() {
       return;
     }
 
+    console.log("Starting handleGenerate...");
     setIsEnhancing(false);
     setError(null);
     setGeneratedImage(null);
@@ -326,6 +327,7 @@ export default function App() {
     try {
       // Step 0: If there's a reference image, upload it to ImgBB first
       if (referenceImage) {
+        console.log("Uploading reference image to ImgBB...");
         try {
           const base64Data = referenceImage.split(',')[1];
           const imgbbRes = await fetch('/api/upload-imgbb', {
@@ -336,6 +338,7 @@ export default function App() {
           const imgbbData = await imgbbRes.json();
           if (imgbbData.success) {
             finalReferenceImageUrl = imgbbData.data.url;
+            console.log("Reference image uploaded:", finalReferenceImageUrl);
           }
         } catch (e) {
           console.error("Reference Image ImgBB Upload Failed", e);
@@ -343,6 +346,7 @@ export default function App() {
       }
 
       // Track request in Firestore
+      console.log("Tracking request in Firestore...");
       const reqRef = await addDoc(collection(db, 'requests'), {
         userId: user ? user.uid : 'anonymous',
         userEmail: user ? (user.email || user.providerData?.find(p => p.email)?.email || 'N/A') : 'anonymous',
@@ -354,8 +358,10 @@ export default function App() {
         createdAt: serverTimestamp()
       });
       currentRequestId = reqRef.id;
+      console.log("Request tracked with ID:", currentRequestId);
 
       if (isEnhanceEnabled) {
+        console.log("Enhancing prompt...");
         setIsEnhancing(true);
         try {
           // Step 1: Enhance Prompt using Bol-AI Engine (via proxy)
@@ -370,6 +376,7 @@ export default function App() {
             if (enhanceData.enhancedPrompt) {
               finalPrompt = enhanceData.enhancedPrompt;
               setEnhancedPrompt(finalPrompt);
+              console.log("Prompt enhanced:", finalPrompt);
               // Update request with enhanced prompt
               if (currentRequestId) {
                 await updateDoc(doc(db, 'requests', currentRequestId), {
@@ -388,6 +395,7 @@ export default function App() {
       }
 
       // Step 2: Generate Image
+      console.log("Sending generation request to server...");
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -395,7 +403,7 @@ export default function App() {
           prompt: finalPrompt, 
           size: selectedSize,
           quality: quality,
-          image_url: referenceImage
+          image_url: finalReferenceImageUrl || referenceImage
         }),
       });
 
