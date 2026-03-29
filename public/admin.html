@@ -374,6 +374,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, query, orderBy, getDocs, doc, setDoc, getDoc, onSnapshot, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app-check.js";
 
         // Initialize Lucide icons
         lucide.createIcons();
@@ -388,6 +389,13 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        
+        // Initialize App Check
+        const appCheck = initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider('6Lc1sZwsAAAAAOIHBQaiVrl-NTL6wM9aIEK1jds3'),
+            isTokenAutoRefreshEnabled: true
+        });
+
         const auth = getAuth(app);
         const db = getFirestore(app);
 
