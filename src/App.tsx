@@ -38,6 +38,7 @@ export default function App() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [isLoginSliderOpen, setIsLoginSliderOpen] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'generator' | 'gallery' | 'my-creations'>('generator');
   const [myImages, setMyImages] = useState<any[]>([]);
@@ -1216,11 +1217,19 @@ Style to emulate: `;
                     </p>
                     <button 
                       onClick={async () => {
+                        setLoginError(null);
                         try {
                           await signInWithPopup(auth, googleProvider);
                           setIsLoginSliderOpen(false);
-                        } catch (error) {
-                          console.error("Login failed:", error);
+                        } catch (error: any) {
+                          if (error.code === 'auth/popup-closed-by-user') {
+                            setLoginError("Login was cancelled. Please try again.");
+                          } else if (error.code === 'auth/popup-blocked') {
+                            setLoginError("Login popup was blocked. Please allow popups for this site.");
+                          } else {
+                            setLoginError("Login failed: " + error.message);
+                            console.error("Login failed:", error);
+                          }
                         }
                       }}
                       className="w-full py-4 px-6 rounded-2xl bg-white text-black font-bold flex items-center justify-center gap-3 hover:scale-[1.02] transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-95"
@@ -1233,6 +1242,14 @@ Style to emulate: `;
                       </svg>
                       Continue with Google
                     </button>
+                    {loginError && (
+                      <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center animate-shake">
+                        {loginError}
+                      </div>
+                    )}
+                    <p className="text-white/40 mt-6 text-[10px] italic text-center">
+                      Note: If login fails, please ensure popups are allowed for this site.
+                    </p>
                   </>
                 ) : (
                   <>
