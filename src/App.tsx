@@ -222,7 +222,7 @@ export default function App() {
           ctx.shadowOffsetX = 2;
           ctx.shadowOffsetY = 2;
 
-          const text = "Bol-AI Nexus";
+          const text = "Bol-Ai";
           const padding = Math.max(10, img.width * 0.02);
           ctx.fillText(text, img.width - padding, img.height - padding);
 
@@ -1130,7 +1130,7 @@ Style to emulate: `;
                 />
                 <div className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[10px] font-bold text-neon-blue uppercase tracking-widest">
                   <Sparkles className="w-3 h-3" />
-                  Bol-AI Creation
+                  Bol-Ai Creation
                 </div>
               </div>
               <div className="w-full md:w-[400px] p-6 md:p-12 flex flex-col justify-between bg-gradient-to-b from-white/5 to-transparent backdrop-blur-3xl border-t md:border-t-0 md:border-l border-white/10 shrink-0">
