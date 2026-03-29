@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, Settings2, ImagePlus } from 'lucide-react';
 import { auth, googleProvider, db } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, doc, getDoc, orderBy, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
@@ -25,16 +25,27 @@ export default function App() {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [isEnhanceEnabled, setIsEnhanceEnabled] = useState(true);
   const [lastGeneratedId, setLastGeneratedId] = useState<string | null>(null);
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const [enhancedPrompt, setEnhancedPrompt] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState("1024*1024");
-  const [quality, setQuality] = useState('standard');
+  const [selectedSize, setSelectedSize] = useState(() => localStorage.getItem('bol_ai_size') || "1024*1024");
+  const [quality, setQuality] = useState(() => localStorage.getItem('bol_ai_quality') || 'standard');
+  const [isEnhanceEnabled, setIsEnhanceEnabled] = useState(() => localStorage.getItem('bol_ai_enhance') === 'false' ? false : true);
   const [generatedSize, setGeneratedSize] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isUiMode, setIsUiMode] = useState(false);
+  const [negativePrompt, setNegativePrompt] = useState('');
+  const [seed, setSeed] = useState('');
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setActiveTooltip(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [isUiMode, setIsUiMode] = useState(() => localStorage.getItem('bol_ai_ui_mode') === 'true');
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [isLoginSliderOpen, setIsLoginSliderOpen] = useState(false);
@@ -173,6 +184,22 @@ export default function App() {
     localStorage.setItem('bol_ai_generations', generationsCount.toString());
   }, [generationsCount]);
 
+  useEffect(() => {
+    localStorage.setItem('bol_ai_size', selectedSize);
+  }, [selectedSize]);
+
+  useEffect(() => {
+    localStorage.setItem('bol_ai_quality', quality);
+  }, [quality]);
+
+  useEffect(() => {
+    localStorage.setItem('bol_ai_enhance', isEnhanceEnabled.toString());
+  }, [isEnhanceEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('bol_ai_ui_mode', isUiMode.toString());
+  }, [isUiMode]);
+
   const nextGalleryImage = () => setGalleryIndex((prev) => (prev + 1) % exampleImages.length);
   const prevGalleryImage = () => setGalleryIndex((prev) => (prev - 1 + exampleImages.length) % exampleImages.length);
 
@@ -259,20 +286,10 @@ export default function App() {
     }
   };
 
-  const UI_DESIGN_PROMPT_PREFIX = `Analyze the uploaded UI design image carefully and generate a detailed, high-quality prompt that can be used to recreate a similar user interface design. Do not describe the image directly. Instead, create a prompt that includes:
-1. The overall theme (e.g. futuristic, minimal, modern, glassmorphism, cyberpunk).
-2. The color scheme (mention only color styles like neon blue, dark black background, gradient pink-purple, etc.).
-3. Button design details (shape, color, glow, hover effect).
-4. Typography and heading style (e.g. gradient text, rounded bold fonts, spacing).
-5. Card and component styling (e.g. rounded corners, glowing outlines, shadows, image placeholders).
-6. Layout and spacing (e.g. centered design, mobile-first layout, responsive look).
-7. Special effects like glassmorphism, neon glow, blurred panels, hover animations.
-⚠️ Do not mention any real text, app names, numbers, labels, or actual UI content. Focus only on style and design language.
-
-Style to emulate: `;
+  const UI_DESIGN_PROMPT_PREFIX = "Professional UI/UX design, high-quality user interface, modern web layout, clean digital components, sleek app design, 4k resolution, highly detailed, professional color palette, ";
 
   const handleGenerate = async () => {
-    if (!prompt.trim() || isGenerating || isEnhancing) return;
+    if ((!prompt.trim() && !referenceImage) || isGenerating || isEnhancing) return;
     
     if (maintenanceMode === 1) return;
     if (maintenanceMode === 2) {
@@ -295,9 +312,28 @@ Style to emulate: `;
     let finalPrompt = isUiMode ? `${UI_DESIGN_PROMPT_PREFIX}${prompt}` : prompt;
     const originalUserPrompt = prompt;
     let currentRequestId: string | null = null;
+    let finalReferenceImageUrl: string | null = null;
     const startTime = Date.now();
 
     try {
+      // Step 0: If there's a reference image, upload it to ImgBB first
+      if (referenceImage) {
+        try {
+          const base64Data = referenceImage.split(',')[1];
+          const imgbbRes = await fetch('/api/upload-imgbb', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageUrl: base64Data })
+          });
+          const imgbbData = await imgbbRes.json();
+          if (imgbbData.success) {
+            finalReferenceImageUrl = imgbbData.data.url;
+          }
+        } catch (e) {
+          console.error("Reference Image ImgBB Upload Failed", e);
+        }
+      }
+
       // Track request in Firestore
       const reqRef = await addDoc(collection(db, 'requests'), {
         userId: user ? user.uid : 'anonymous',
@@ -305,6 +341,7 @@ Style to emulate: `;
         userIp: userIp,
         prompt: originalUserPrompt,
         enhancedPrompt: isEnhanceEnabled ? null : originalUserPrompt, // Will be updated if enhanced
+        referenceImageUrl: finalReferenceImageUrl,
         status: 'active',
         createdAt: serverTimestamp()
       });
@@ -350,7 +387,10 @@ Style to emulate: `;
         body: JSON.stringify({ 
           prompt: finalPrompt, 
           size: selectedSize,
-          quality: quality
+          quality: quality,
+          image_url: referenceImage,
+          negative_prompt: negativePrompt,
+          seed: seed
         }),
       });
 
@@ -431,6 +471,7 @@ Style to emulate: `;
                 userIp: userIp,
                 prompt: finalPrompt,
                 imageUrl: finalDisplayUrl,
+                referenceImageUrl: finalReferenceImageUrl,
                 size: selectedSize,
                 createdAt: serverTimestamp()
               };
@@ -651,7 +692,7 @@ Style to emulate: `;
             initial={{ opacity: 0, scale: 0.95, rotateX: 10 }}
             animate={{ opacity: 1, scale: 1, rotateX: 0, y: [0, -5, 0] }}
             transition={{ y: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}
-            className="glass rounded-[2.5rem] p-4 flex flex-col md:flex-row gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden border border-white/10 group hover:border-neon-blue/30 transition-all duration-500"
+            className="glass rounded-[2.5rem] p-4 flex flex-col gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden border border-white/10 group hover:border-neon-blue/30 transition-all duration-500"
             style={{ transformStyle: 'preserve-3d', perspective: '1000px' }}
           >
             {isEnhancing && (
@@ -666,42 +707,233 @@ Style to emulate: `;
                 </span>
               </motion.div>
             )}
-            <textarea 
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder={isUiMode ? "Describe the UI style you want to recreate..." : "Describe what you want to see (any language)..."}
-              className="flex-1 bg-transparent px-6 py-4 outline-none text-white placeholder:text-white/20 font-medium resize-none min-h-[80px] max-h-[300px] scrollbar-hide"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleGenerate();
-                }
-              }}
-              disabled={isEnhancing || isGenerating}
-            />
-            <button 
-              onClick={() => setIsUiMode(!isUiMode)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${isUiMode ? 'bg-neon-blue text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
-              disabled={isEnhancing || isGenerating}
-            >
-              <LayoutGrid className="w-4 h-4" />
-              UI MODE
-            </button>
-            <button 
-              onClick={handleGenerate}
-              disabled={isGenerating || isEnhancing || maintenanceMode === 1}
-              className="bg-gradient-to-r from-neon-blue to-neon-purple px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
-            >
-              {isGenerating ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Generate
-                  <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </button>
+            
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 flex flex-col gap-2">
+                {referenceImage && (
+                  <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-neon-blue/50 group/ref">
+                    <img src={referenceImage} alt="Reference" className="w-full h-full object-cover" />
+                    <button 
+                      onClick={() => setReferenceImage(null)}
+                      className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white hover:bg-red-500 transition-colors opacity-0 group-hover/ref:opacity-100"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+                <textarea 
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder={isUiMode ? "Describe the UI style you want to recreate..." : "Describe what you want to see (any language)..."}
+                  className="w-full bg-transparent px-6 py-4 outline-none text-white placeholder:text-white/20 font-medium resize-none min-h-[80px] max-h-[300px] scrollbar-hide"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleGenerate();
+                    }
+                  }}
+                  disabled={isEnhancing || isGenerating}
+                />
+              </div>
+              
+              <div className="flex flex-col gap-2 justify-end">
+                <div className="flex gap-2">
+                  <input 
+                    type="file" 
+                    id="ref-image" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setReferenceImage(reader.result as string);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <label 
+                    htmlFor="ref-image"
+                    className={`p-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${referenceImage ? 'bg-neon-blue text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                    <span className="hidden md:inline">REF IMG</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setIsUiMode(!isUiMode)}
+                      className={`p-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${isUiMode ? 'bg-neon-blue text-black shadow-[0_0_15px_rgba(0,255,255,0.3)]' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                      disabled={isEnhancing || isGenerating}
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                      <span className="hidden md:inline">UI MODE</span>
+                    </button>
+                    <div className="relative">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveTooltip(activeTooltip === 'uimode' ? null : 'uimode');
+                        }}
+                        className={`p-2 rounded-xl transition-all duration-300 ${activeTooltip === 'uimode' ? 'bg-neon-blue/20 text-neon-blue' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'}`}
+                        title="What is UI Mode?"
+                      >
+                        <Info className="w-5 h-5" />
+                      </button>
+                      <AnimatePresence>
+                        {activeTooltip === 'uimode' && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 p-4 bg-black/95 border border-white/10 rounded-2xl text-xs text-white/70 leading-relaxed z-50 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-t-neon-blue/30"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-neon-blue animate-pulse" />
+                              <p className="font-bold text-neon-blue uppercase tracking-widest text-[10px]">UI Design Engine</p>
+                            </div>
+                            <p className="mb-2">UI Mode optimizes the AI to generate <span className="text-white font-medium">professional user interfaces</span>, web layouts, and app components.</p>
+                            <p className="text-[10px] italic text-white/40">Best for: Landing pages, Dashboards, Mobile App Screens, and UI Kits.</p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={handleGenerate}
+                  disabled={(!prompt.trim() && !referenceImage) || isGenerating || isEnhancing || maintenanceMode === 1}
+                  className="bg-gradient-to-r from-neon-blue to-neon-purple px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {isGenerating ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      Generate
+                      <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </motion.div>
+
+          {/* Advanced Settings */}
+          <div className="mt-6 max-w-4xl mx-auto">
+            <button 
+              onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+              className={`flex items-center gap-3 px-5 py-2.5 rounded-full border transition-all duration-300 text-[11px] uppercase tracking-[0.2em] font-bold ${
+                isAdvancedOpen 
+                  ? 'bg-neon-blue/10 border-neon-blue/30 text-neon-blue shadow-[0_0_20px_rgba(0,255,255,0.1)]' 
+                  : 'bg-white/5 border-white/10 text-white/30 hover:text-white hover:border-white/20'
+              }`}
+            >
+              <Settings2 className={`w-4 h-4 ${isAdvancedOpen ? 'animate-spin-slow' : ''}`} />
+              Advanced Engine Settings
+              <ChevronDown className={`w-4 h-4 transition-transform duration-500 ${isAdvancedOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            <AnimatePresence>
+              {isAdvancedOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0, y: -10 }}
+                  animate={{ height: 'auto', opacity: 1, y: 0 }}
+                  exit={{ height: 0, opacity: 0, y: -10 }}
+                  transition={{ duration: 0.4, ease: "circOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 p-8 glass rounded-[2rem] border border-white/10 shadow-2xl relative">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                      <Settings2 className="w-32 h-32" />
+                    </div>
+                    
+                    <div className="flex flex-col gap-3 relative z-10">
+                      <div className="flex items-center gap-2 ml-2">
+                        <label className="text-[10px] uppercase tracking-[0.3em] text-neon-blue font-bold">Negative Prompt</label>
+                        <div className="relative">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTooltip(activeTooltip === 'negative' ? null : 'negative');
+                            }}
+                            className={`p-1.5 rounded-lg transition-all ${activeTooltip === 'negative' ? 'bg-neon-blue/20 text-neon-blue' : 'hover:bg-white/10 text-white/20'}`}
+                          >
+                            <Info className="w-4 h-4" />
+                          </button>
+                          <AnimatePresence>
+                            {activeTooltip === 'negative' && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className="absolute bottom-full left-0 mb-3 w-64 p-4 bg-black/95 border border-white/10 rounded-2xl text-[11px] text-white/70 leading-relaxed z-50 backdrop-blur-2xl shadow-2xl"
+                              >
+                                <p className="font-bold text-neon-blue mb-2 uppercase tracking-widest text-[10px]">Negative Prompting</p>
+                                <p className="mb-2">Tell the AI what to <span className="text-red-400 font-bold">AVOID</span>. This is crucial for high-quality results.</p>
+                                <p className="text-white/40 italic">Example: "blurry, distorted, extra fingers, text, watermark, low resolution, grainy".</p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-white/30 ml-2 -mt-1 mb-1">Specify what to <span className="text-red-400/50">exclude</span> from the image (e.g. blurry, text, low quality).</p>
+                      <textarea 
+                        value={negativePrompt}
+                        onChange={(e) => setNegativePrompt(e.target.value)}
+                        placeholder="e.g. blurry, low quality, distorted, watermark, text..."
+                        className="bg-black/60 p-5 rounded-2xl border border-white/5 text-sm text-white placeholder:text-white/10 outline-none focus:border-neon-blue/40 transition-all min-h-[120px] resize-none shadow-inner"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-3 relative z-10">
+                      <div className="flex items-center gap-2 ml-2">
+                        <label className="text-[10px] uppercase tracking-[0.3em] text-neon-purple font-bold">Seed Control</label>
+                        <div className="relative">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveTooltip(activeTooltip === 'seed' ? null : 'seed');
+                            }}
+                            className={`p-1.5 rounded-lg transition-all ${activeTooltip === 'seed' ? 'bg-neon-purple/20 text-neon-purple' : 'hover:bg-white/10 text-white/20'}`}
+                          >
+                            <Info className="w-4 h-4" />
+                          </button>
+                          <AnimatePresence>
+                            {activeTooltip === 'seed' && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className="absolute bottom-full left-0 mb-3 w-64 p-4 bg-black/95 border border-white/10 rounded-2xl text-[11px] text-white/70 leading-relaxed z-50 backdrop-blur-2xl shadow-2xl"
+                              >
+                                <p className="font-bold text-neon-purple mb-2 uppercase tracking-widest text-[10px]">Seed Control</p>
+                                <p className="mb-2">A seed is a <span className="text-white font-medium">starting point</span> for the AI's randomness.</p>
+                                <p className="mb-2">Using the <span className="text-neon-purple font-bold">SAME SEED</span> with the same prompt will generate the exact same image.</p>
+                                <p className="text-white/40 italic">Useful for: Creating consistent characters or making small tweaks to a prompt.</p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-white/30 ml-2 -mt-1 mb-1">Use a fixed number to get <span className="text-neon-purple/50">consistent</span> results every time.</p>
+                      <input 
+                        type="number"
+                        value={seed}
+                        onChange={(e) => setSeed(e.target.value)}
+                        placeholder="Enter any number (e.g. 12345)"
+                        className="bg-black/60 p-5 rounded-2xl border border-white/5 text-sm text-white placeholder:text-white/10 outline-none focus:border-neon-purple/40 transition-all shadow-inner"
+                      />
+                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5 mt-2">
+                        <p className="text-[10px] text-white/40 leading-relaxed italic">
+                          Pro Tip: Keep the seed empty for random results. If you find an image you love, copy its seed to make variations!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Maintenance Mode Warning */}
           <AnimatePresence>
@@ -769,10 +1001,10 @@ Style to emulate: `;
                 <div 
                   className="glass rounded-[2rem] overflow-hidden relative group flex items-center justify-center bg-black/60 mx-auto transition-all duration-500"
                   style={{
-                    aspectRatio: selectedSize === "1280*720" ? "16/9" : selectedSize === "720*1280" ? "9/16" : "1/1",
+                    aspectRatio: generatedSize === "1280*720" ? "16/9" : generatedSize === "720*1280" ? "9/16" : "1/1",
                     maxHeight: "80vh",
-                    width: selectedSize === "720*1280" ? "auto" : "100%",
-                    maxWidth: selectedSize === "720*1280" ? "calc(80vh * (9/16))" : "100%"
+                    width: generatedSize === "720*1280" ? "auto" : "100%",
+                    maxWidth: generatedSize === "720*1280" ? "calc(80vh * (9/16))" : "100%"
                   }}
                 >
                   {isGenerating ? (

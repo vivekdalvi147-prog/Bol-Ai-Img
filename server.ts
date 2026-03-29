@@ -170,7 +170,7 @@ app.get("/api/download", async (req, res) => {
 // API Route for Image Generation (Start Task)
 app.post("/api/generate", rateLimiter, async (req, res) => {
   try {
-    const { prompt, size } = req.body;
+    const { prompt, size, image_url, negative_prompt, seed } = req.body;
     const userPrompt = prompt || "A golden cat";
     const imageSize = size || "1024*1024";
     const apiKey = process.env.VIVEK_AI_BOL_IMG;
@@ -185,21 +185,33 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
       "Content-Type": "application/json",
     };
 
+    // Determine model: If image_url is provided, use Qwen-Image-Edit, otherwise Z-Image-Turbo
+    const model = image_url ? "MusePublic/Qwen-Image-Edit" : "Tongyi-MAI/Z-Image-Turbo";
+    
     // 1. Image Generation Task
     const [width, height] = imageSize.split('*').map(Number);
+    
+    const requestBody: any = {
+      model: model,
+      prompt: userPrompt,
+      parameters: {
+        n: 1,
+        size: `${width}x${height}`,
+        width: width,
+        height: height,
+        negative_prompt: negative_prompt || "",
+        seed: seed ? Number(seed) : undefined
+      }
+    };
+
+    if (image_url) {
+      requestBody.image_url = image_url;
+    }
+
     const response = await fetchWithRetry(`${baseUrl}v1/images/generations`, {
       method: 'POST',
       headers: { ...commonHeaders, "X-ModelScope-Async-Mode": "true" },
-      body: JSON.stringify({
-        model: "Tongyi-MAI/Z-Image-Turbo",
-        prompt: userPrompt,
-        parameters: {
-          n: 1,
-          size: `${width}*${height}`,
-          width: width,
-          height: height
-        }
-      })
+      body: JSON.stringify(requestBody)
     }, 3, 2000);
 
     if (!response.ok) {
