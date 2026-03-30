@@ -2,126 +2,314 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings as SettingsIcon, ToggleLeft, ToggleRight, Activity, ShieldAlert, UserCircle, ShieldCheck, LogOut, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, limit, getDocs, deleteDoc, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import './index.css';
+import { 
+  Settings as SettingsIcon, 
+  ToggleLeft, 
+  ToggleRight, 
+  Activity, 
+  ShieldAlert, 
+  UserCircle, 
+  ShieldCheck, 
+  LogOut, 
+  AlertTriangle, 
+  Loader2, 
+  Sparkles, 
+  Users, 
+  Image as ImageIcon, 
+  LayoutDashboard, 
+  Trash2, 
+  Plus, 
+  Search,
+  RefreshCw,
+  Clock,
+  CheckCircle2
+} from 'lucide-react';
 
-// Admin Panel Component
-function AdminPanel({ maintenanceMode, isEnhanceGlobal, isTxtToImgGlobal, isImgToImgGlobal, userLimit, onUpdateSettings }: any) {
+// Admin Panel Components
+function DashboardStats({ users, generations, requests }: any) {
+  const stats = [
+    { label: 'Total Users', value: users.length, icon: Users, color: 'text-neon-blue', bg: 'bg-neon-blue/10' },
+    { label: 'Total Generations', value: generations.length, icon: ImageIcon, color: 'text-neon-purple', bg: 'bg-neon-purple/10' },
+    { label: 'Active Requests', value: requests.length, icon: Activity, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+  ];
+
   return (
-    <motion.section 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto py-12 px-6"
-    >
-      <div className="flex items-center gap-4 mb-12">
-        <div className="w-16 h-16 bg-neon-purple/20 rounded-2xl flex items-center justify-center border border-neon-purple/30 shadow-[0_0_30px_rgba(176,38,255,0.2)]">
-          <SettingsIcon className="w-8 h-8 text-neon-purple" />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      {stats.map((stat) => (
+        <div key={stat.label} className="glass p-6 rounded-3xl border border-white/10 flex items-center gap-4">
+          <div className={`w-12 h-12 ${stat.bg} rounded-2xl flex items-center justify-center border border-white/5`}>
+            <stat.icon className={`w-6 h-6 ${stat.color}`} />
+          </div>
+          <div>
+            <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">{stat.label}</p>
+            <p className="text-2xl font-display font-bold text-white">{stat.value}</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-4xl font-display font-bold text-white">Admin Control Center</h2>
-          <p className="text-neon-purple font-bold tracking-widest uppercase text-[10px] mt-1">System Override & Governance</p>
+      ))}
+    </div>
+  );
+}
+
+function SystemSettings({ maintenanceMode, isEnhanceGlobal, isTxtToImgGlobal, isImgToImgGlobal, userLimit, onUpdateSettings }: any) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Maintenance Mode */}
+      <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
+        <div className="flex items-center gap-3 mb-2">
+          <Activity className="w-5 h-5 text-neon-blue" />
+          <h3 className="text-xl font-bold text-white">System Status</h3>
+        </div>
+        
+        <div className="space-y-4">
+          {[
+            { label: 'Operational', value: 0, desc: 'All systems go. Normal operation.' },
+            { label: 'Maintenance', value: 1, desc: 'Full lockdown. Generation disabled.' },
+            { label: 'Soft Maintenance', value: 2, desc: 'Warnings active but systems open.' }
+          ].map((mode) => (
+            <button
+              key={mode.value}
+              onClick={() => onUpdateSettings({ maintenanceMode: mode.value })}
+              className={`w-full p-4 rounded-2xl border transition-all text-left group ${
+                maintenanceMode === mode.value 
+                  ? 'bg-neon-blue/10 border-neon-blue/50 shadow-[0_0_20px_rgba(0,255,255,0.1)]' 
+                  : 'bg-white/5 border-white/5 hover:border-white/20'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className={`font-bold ${maintenanceMode === mode.value ? 'text-neon-blue' : 'text-white/70'}`}>{mode.label}</span>
+                {maintenanceMode === mode.value && <div className="w-2 h-2 rounded-full bg-neon-blue animate-pulse" />}
+              </div>
+              <p className="text-[10px] text-white/40 leading-relaxed">{mode.desc}</p>
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Maintenance Mode */}
-        <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <Activity className="w-5 h-5 text-neon-blue" />
-            <h3 className="text-xl font-bold text-white">System Status</h3>
-          </div>
-          
-          <div className="space-y-4">
-            {[
-              { label: 'Operational', value: 0, desc: 'All systems go. Normal operation.' },
-              { label: 'Maintenance', value: 1, desc: 'Full lockdown. Generation disabled.' },
-              { label: 'Soft Maintenance', value: 2, desc: 'Warnings active but systems open.' }
-            ].map((mode) => (
-              <button
-                key={mode.value}
-                onClick={() => onUpdateSettings({ maintenanceMode: mode.value })}
-                className={`w-full p-4 rounded-2xl border transition-all text-left group ${
-                  maintenanceMode === mode.value 
-                    ? 'bg-neon-blue/10 border-neon-blue/50 shadow-[0_0_20px_rgba(0,255,255,0.1)]' 
-                    : 'bg-white/5 border-white/5 hover:border-white/20'
-                }`}
+      {/* Feature Toggles */}
+      <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
+        <div className="flex items-center gap-3 mb-2">
+          <ShieldAlert className="w-5 h-5 text-neon-purple" />
+          <h3 className="text-xl font-bold text-white">Feature Governance</h3>
+        </div>
+
+        <div className="space-y-4">
+          {[
+            { label: 'Bol-AI Enhance', key: 'isEnhanceGlobal', current: isEnhanceGlobal },
+            { label: 'Text-to-Image', key: 'isTxtToImgGlobal', current: isTxtToImgGlobal },
+            { label: 'Image-to-Image', key: 'isImgToImgGlobal', current: isImgToImgGlobal }
+          ].map((feature) => (
+            <div key={feature.key} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+              <div>
+                <p className="text-sm font-bold text-white">{feature.label}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-widest">{feature.current ? 'Active' : 'Disabled'}</p>
+              </div>
+              <button 
+                onClick={() => onUpdateSettings({ [feature.key]: !feature.current })}
+                className={`p-2 rounded-xl transition-all ${feature.current ? 'text-neon-blue bg-neon-blue/10' : 'text-white/20 bg-white/5'}`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`font-bold ${maintenanceMode === mode.value ? 'text-neon-blue' : 'text-white/70'}`}>{mode.label}</span>
-                  {maintenanceMode === mode.value && <div className="w-2 h-2 rounded-full bg-neon-blue animate-pulse" />}
-                </div>
-                <p className="text-[10px] text-white/40 leading-relaxed">{mode.desc}</p>
+                {feature.current ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
               </button>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* User Limits */}
+      <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
+        <div className="flex items-center gap-3 mb-2">
+          <UserCircle className="w-5 h-5 text-neon-blue" />
+          <h3 className="text-xl font-bold text-white">User Limits</h3>
         </div>
 
-        {/* Feature Toggles */}
-        <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <ShieldAlert className="w-5 h-5 text-neon-purple" />
-            <h3 className="text-xl font-bold text-white">Feature Governance</h3>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              { label: 'Bol-AI Enhance', key: 'isEnhanceGlobal', current: isEnhanceGlobal },
-              { label: 'Text-to-Image', key: 'isTxtToImgGlobal', current: isTxtToImgGlobal },
-              { label: 'Image-to-Image', key: 'isImgToImgGlobal', current: isImgToImgGlobal }
-            ].map((feature) => (
-              <div key={feature.key} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
-                <div>
-                  <p className="text-sm font-bold text-white">{feature.label}</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-widest">{feature.current ? 'Active' : 'Disabled'}</p>
-                </div>
-                <button 
-                  onClick={() => onUpdateSettings({ [feature.key]: !feature.current })}
-                  className={`p-2 rounded-xl transition-all ${feature.current ? 'text-neon-blue bg-neon-blue/10' : 'text-white/20 bg-white/5'}`}
-                >
-                  {feature.current ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* User Limits */}
-        <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <UserCircle className="w-5 h-5 text-neon-blue" />
-            <h3 className="text-xl font-bold text-white">User Limits</h3>
-          </div>
-
-          <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-              <p className="text-sm font-bold text-white mb-2">Daily Generation Limit</p>
-              <div className="flex items-center gap-4">
-                <input 
-                  type="number" 
-                  value={userLimit}
-                  onChange={(e) => onUpdateSettings({ userLimit: parseInt(e.target.value) || 1 })}
-                  className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white w-24 outline-none focus:border-neon-blue transition-colors"
-                />
-                <p className="text-[10px] text-white/40 uppercase tracking-widest">Generations per user per day</p>
-              </div>
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+            <p className="text-sm font-bold text-white mb-2">Daily Generation Limit</p>
+            <div className="flex items-center gap-4">
+              <input 
+                type="number" 
+                value={userLimit}
+                onChange={(e) => onUpdateSettings({ userLimit: parseInt(e.target.value) || 1 })}
+                className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white w-24 outline-none focus:border-neon-blue transition-colors"
+              />
+              <p className="text-[10px] text-white/40 uppercase tracking-widest">Generations per user per day</p>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="mt-12 p-8 glass rounded-[2rem] border border-red-500/20 bg-red-500/5">
-        <div className="flex items-center gap-3 mb-4">
-          <ShieldCheck className="w-6 h-6 text-red-500" />
-          <h3 className="text-xl font-bold text-white">Security Protocol</h3>
+function UserManagement({ users }: any) {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredUsers = users.filter((u: any) => 
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    u.uid?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="glass rounded-[2rem] border border-white/10 overflow-hidden">
+      <div className="p-8 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-white">User Directory</h3>
+          <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Manage and monitor user activity</p>
         </div>
-        <p className="text-sm text-white/60 leading-relaxed">
-          Changes made here take effect globally and immediately. Ensure all system overrides are verified before deployment.
-        </p>
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+          <input 
+            type="text" 
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-2 text-sm text-white outline-none focus:border-neon-blue transition-colors w-full md:w-64"
+          />
+        </div>
       </div>
-    </motion.section>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-white/5">
+              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">User</th>
+              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">UID</th>
+              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">Generations</th>
+              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">Last Login</th>
+              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">Role</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {filteredUsers.map((u: any) => (
+              <tr key={u.uid} className="hover:bg-white/[0.02] transition-colors">
+                <td className="px-8 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-neon-blue/20 border border-neon-blue/30 flex items-center justify-center overflow-hidden">
+                      {u.photoURL ? <img src={u.photoURL} alt="" className="w-full h-full object-cover" /> : <UserCircle className="w-4 h-4 text-neon-blue" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">{u.displayName || 'Guest'}</p>
+                      <p className="text-[10px] text-white/40">{u.email}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-8 py-4 font-mono text-[10px] text-white/40">{u.uid}</td>
+                <td className="px-8 py-4">
+                  <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-white">
+                    {u.generationsCount || 0}
+                  </span>
+                </td>
+                <td className="px-8 py-4 text-[10px] text-white/40">
+                  {u.lastLogin?.toDate ? u.lastLogin.toDate().toLocaleString() : 'Never'}
+                </td>
+                <td className="px-8 py-4">
+                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest ${u.role === 'admin' ? 'bg-neon-purple/20 text-neon-purple border border-neon-purple/30' : 'bg-white/5 text-white/40 border border-white/10'}`}>
+                    {u.role || 'user'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function GalleryManagement({ generations, onDelete }: any) {
+  return (
+    <div className="glass rounded-[2rem] border border-white/10 overflow-hidden">
+      <div className="p-8 border-b border-white/5">
+        <h3 className="text-xl font-bold text-white">Global Gallery</h3>
+        <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Monitor and moderate all generated content</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-8">
+        {generations.map((gen: any) => (
+          <div key={gen.id} className="group relative glass rounded-2xl border border-white/10 overflow-hidden aspect-square">
+            <img src={gen.imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
+              <p className="text-[10px] text-white/80 line-clamp-2 mb-3">{gen.prompt}</p>
+              <div className="flex items-center justify-between">
+                <span className="text-[8px] text-white/40 uppercase tracking-widest">UID: {gen.userId?.slice(0, 8)}...</span>
+                <button 
+                  onClick={() => onDelete(gen.id)}
+                  className="p-2 bg-red-500/20 text-red-500 rounded-lg border border-red-500/30 hover:bg-red-500 hover:text-white transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ExamplesManagement({ examples, onAdd, onDelete }: any) {
+  const [newUrl, setNewUrl] = useState('');
+  const [newPrompt, setNewPrompt] = useState('');
+
+  return (
+    <div className="glass rounded-[2rem] border border-white/10 overflow-hidden">
+      <div className="p-8 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-white">Example Showcase</h3>
+          <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Manage images displayed on the home page</p>
+        </div>
+      </div>
+      
+      <div className="p-8 border-b border-white/5 bg-white/5">
+        <h4 className="text-xs font-bold text-white mb-4 uppercase tracking-widest">Add New Example</h4>
+        <div className="flex flex-col md:flex-row gap-4">
+          <input 
+            type="text" 
+            placeholder="Image URL"
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-neon-blue transition-colors"
+          />
+          <input 
+            type="text" 
+            placeholder="Prompt"
+            value={newPrompt}
+            onChange={(e) => setNewPrompt(e.target.value)}
+            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-neon-blue transition-colors"
+          />
+          <button 
+            onClick={() => {
+              if (newUrl && newPrompt) {
+                onAdd(newUrl, newPrompt);
+                setNewUrl('');
+                setNewPrompt('');
+              }
+            }}
+            className="px-6 py-2 bg-neon-blue text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-white transition-all"
+          >
+            <Plus className="w-4 h-4" /> Add
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-8">
+        {examples.map((ex: any) => (
+          <div key={ex.id} className="group relative glass rounded-2xl border border-white/10 overflow-hidden aspect-square">
+            <img src={ex.imageUrl} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+              <button 
+                onClick={() => onDelete(ex.id)}
+                className="p-3 bg-red-500/20 text-red-500 rounded-xl border border-red-500/30 hover:bg-red-500 hover:text-white transition-all"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -166,11 +354,21 @@ class AdminErrorBoundary extends React.Component<any, any> {
 function AdminApp() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Settings State
   const [maintenanceMode, setMaintenanceMode] = useState(0);
   const [isEnhanceGlobal, setIsEnhanceGlobal] = useState(true);
   const [isTxtToImgGlobal, setIsTxtToImgGlobal] = useState(true);
   const [isImgToImgGlobal, setIsImgToImgGlobal] = useState(true);
   const [userLimit, setUserLimit] = useState(10);
+  
+  // Data State
+  const [users, setUsers] = useState<any[]>([]);
+  const [generations, setGenerations] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [examples, setExamples] = useState<any[]>([]);
+  
   const [showToast, setShowToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -192,7 +390,8 @@ function AdminApp() {
   useEffect(() => {
     if (!isAdmin) return;
 
-    const unsubscribe = onSnapshot(doc(db, 'settings', 'general'), (doc) => {
+    // Listen to Settings
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (doc) => {
       if (doc.exists()) {
         const data = doc.data();
         setMaintenanceMode(data.maintenanceMode ?? 0);
@@ -203,7 +402,33 @@ function AdminApp() {
       }
     });
 
-    return () => unsubscribe();
+    // Listen to Users
+    const unsubUsers = onSnapshot(query(collection(db, 'users'), orderBy('lastLogin', 'desc')), (snap) => {
+      setUsers(snap.docs.map(d => ({ ...d.data(), uid: d.id })));
+    });
+
+    // Listen to Generations
+    const unsubGens = onSnapshot(query(collection(db, 'generations'), orderBy('createdAt', 'desc'), limit(50)), (snap) => {
+      setGenerations(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    // Listen to Requests (Active)
+    const unsubReqs = onSnapshot(query(collection(db, 'requests'), where('status', '==', 'active')), (snap) => {
+      setRequests(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    // Listen to Examples
+    const unsubExamples = onSnapshot(query(collection(db, 'examples'), orderBy('createdAt', 'desc')), (snap) => {
+      setExamples(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    return () => {
+      unsubSettings();
+      unsubUsers();
+      unsubGens();
+      unsubReqs();
+      unsubExamples();
+    };
   }, [isAdmin]);
 
   const handleUpdateSettings = async (newSettings: any) => {
@@ -214,6 +439,45 @@ function AdminApp() {
     } catch (e) {
       console.error("Failed to update settings:", e);
       setShowToast("Failed to update settings.");
+      setTimeout(() => setShowToast(null), 3000);
+    }
+  };
+
+  const handleDeleteGeneration = async (id: string) => {
+    if (!confirm("Delete this generation permanently?")) return;
+    try {
+      await deleteDoc(doc(db, 'generations', id));
+      setShowToast("Generation deleted.");
+      setTimeout(() => setShowToast(null), 3000);
+    } catch (e) {
+      setShowToast("Failed to delete.");
+      setTimeout(() => setShowToast(null), 3000);
+    }
+  };
+
+  const handleAddExample = async (imageUrl: string, prompt: string) => {
+    try {
+      await addDoc(collection(db, 'examples'), {
+        imageUrl,
+        prompt,
+        createdAt: serverTimestamp()
+      });
+      setShowToast("Example added successfully!");
+      setTimeout(() => setShowToast(null), 3000);
+    } catch (e) {
+      setShowToast("Failed to add example.");
+      setTimeout(() => setShowToast(null), 3000);
+    }
+  };
+
+  const handleDeleteExample = async (id: string) => {
+    if (!confirm("Delete this example?")) return;
+    try {
+      await deleteDoc(doc(db, 'examples', id));
+      setShowToast("Example removed.");
+      setTimeout(() => setShowToast(null), 3000);
+    } catch (e) {
+      setShowToast("Failed to remove.");
       setTimeout(() => setShowToast(null), 3000);
     }
   };
@@ -258,6 +522,29 @@ function AdminApp() {
             <span className="text-2xl font-display font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">Bol-AI</span>
           </div>
           
+          <div className="hidden md:flex items-center gap-2 bg-white/5 p-1 rounded-2xl border border-white/10">
+            {[
+              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+              { id: 'settings', label: 'Settings', icon: SettingsIcon },
+              { id: 'users', label: 'Users', icon: Users },
+              { id: 'gallery', label: 'Gallery', icon: ImageIcon },
+              { id: 'examples', label: 'Examples', icon: Sparkles },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                  activeTab === tab.id 
+                    ? 'bg-neon-blue text-black shadow-[0_0_20px_rgba(0,255,255,0.3)]' 
+                    : 'text-white/40 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           <button 
             onClick={() => signOut(auth).then(() => window.location.href = '/')}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
@@ -268,15 +555,163 @@ function AdminApp() {
         </div>
       </nav>
 
-      <main className="pt-24 pb-12">
-        <AdminPanel 
-          maintenanceMode={maintenanceMode}
-          isEnhanceGlobal={isEnhanceGlobal}
-          isTxtToImgGlobal={isTxtToImgGlobal}
-          isImgToImgGlobal={isImgToImgGlobal}
-          userLimit={userLimit}
-          onUpdateSettings={handleUpdateSettings}
-        />
+      {/* Mobile Nav */}
+      <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 glass rounded-2xl border border-white/10 p-2 flex items-center justify-around">
+        {[
+          { id: 'dashboard', icon: LayoutDashboard },
+          { id: 'settings', icon: SettingsIcon },
+          { id: 'users', icon: Users },
+          { id: 'gallery', icon: ImageIcon },
+          { id: 'examples', icon: Sparkles },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`p-3 rounded-xl transition-all ${
+              activeTab === tab.id ? 'bg-neon-blue text-black' : 'text-white/40'
+            }`}
+          >
+            <tab.icon className="w-5 h-5" />
+          </button>
+        ))}
+      </div>
+
+      <main className="pt-32 pb-24 px-6 max-w-7xl mx-auto">
+        <AnimatePresence mode="wait">
+          {activeTab === 'dashboard' && (
+            <motion.div key="dashboard" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <div className="flex items-center gap-4 mb-12">
+                <div className="w-16 h-16 bg-neon-blue/20 rounded-2xl flex items-center justify-center border border-neon-blue/30 shadow-[0_0_30px_rgba(0,255,255,0.2)]">
+                  <LayoutDashboard className="w-8 h-8 text-neon-blue" />
+                </div>
+                <div>
+                  <h2 className="text-4xl font-display font-bold text-white">Command Center</h2>
+                  <p className="text-neon-blue font-bold tracking-widest uppercase text-[10px] mt-1">Real-time System Overview</p>
+                </div>
+              </div>
+              <DashboardStats users={users} generations={generations} requests={requests} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="glass p-8 rounded-[2rem] border border-white/10">
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-bold text-white">Recent Activity</h3>
+                    <RefreshCw className="w-4 h-4 text-white/20 animate-spin-slow" />
+                  </div>
+                  <div className="space-y-4">
+                    {generations.slice(0, 5).map((gen) => (
+                      <div key={gen.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/10">
+                          <img src={gen.imageUrl} alt="" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{gen.prompt}</p>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">
+                            {gen.createdAt?.toDate ? gen.createdAt.toDate().toLocaleTimeString() : 'Just now'}
+                          </p>
+                        </div>
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="glass p-8 rounded-[2rem] border border-white/10">
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-bold text-white">Active Requests</h3>
+                    <span className="px-2 py-1 rounded-lg bg-yellow-500/20 text-yellow-500 text-[10px] font-bold uppercase tracking-widest border border-yellow-500/30">
+                      {requests.length} Processing
+                    </span>
+                  </div>
+                  <div className="space-y-4">
+                    {requests.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Clock className="w-12 h-12 text-white/10 mx-auto mb-4" />
+                        <p className="text-white/40 text-sm">No active requests at the moment</p>
+                      </div>
+                    ) : (
+                      requests.map((req) => (
+                        <div key={req.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5">
+                          <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20">
+                            <Loader2 className="w-5 h-5 text-yellow-500 animate-spin" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-white truncate">{req.prompt}</p>
+                            <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">UID: {req.userId?.slice(0, 8)}...</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'settings' && (
+            <motion.div key="settings" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <div className="flex items-center gap-4 mb-12">
+                <div className="w-16 h-16 bg-neon-purple/20 rounded-2xl flex items-center justify-center border border-neon-purple/30 shadow-[0_0_30px_rgba(176,38,255,0.2)]">
+                  <SettingsIcon className="w-8 h-8 text-neon-purple" />
+                </div>
+                <div>
+                  <h2 className="text-4xl font-display font-bold text-white">System Settings</h2>
+                  <p className="text-neon-purple font-bold tracking-widest uppercase text-[10px] mt-1">Global Configuration</p>
+                </div>
+              </div>
+              <SystemSettings 
+                maintenanceMode={maintenanceMode}
+                isEnhanceGlobal={isEnhanceGlobal}
+                isTxtToImgGlobal={isTxtToImgGlobal}
+                isImgToImgGlobal={isImgToImgGlobal}
+                userLimit={userLimit}
+                onUpdateSettings={handleUpdateSettings}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'users' && (
+            <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <div className="flex items-center gap-4 mb-12">
+                <div className="w-16 h-16 bg-neon-blue/20 rounded-2xl flex items-center justify-center border border-neon-blue/30 shadow-[0_0_30px_rgba(0,255,255,0.2)]">
+                  <Users className="w-8 h-8 text-neon-blue" />
+                </div>
+                <div>
+                  <h2 className="text-4xl font-display font-bold text-white">User Management</h2>
+                  <p className="text-neon-blue font-bold tracking-widest uppercase text-[10px] mt-1">Governance & Access Control</p>
+                </div>
+              </div>
+              <UserManagement users={users} />
+            </motion.div>
+          )}
+
+          {activeTab === 'gallery' && (
+            <motion.div key="gallery" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <div className="flex items-center gap-4 mb-12">
+                <div className="w-16 h-16 bg-neon-purple/20 rounded-2xl flex items-center justify-center border border-neon-purple/30 shadow-[0_0_30px_rgba(176,38,255,0.2)]">
+                  <ImageIcon className="w-8 h-8 text-neon-purple" />
+                </div>
+                <div>
+                  <h2 className="text-4xl font-display font-bold text-white">Master Gallery</h2>
+                  <p className="text-neon-purple font-bold tracking-widest uppercase text-[10px] mt-1">Content Moderation</p>
+                </div>
+              </div>
+              <GalleryManagement generations={generations} onDelete={handleDeleteGeneration} />
+            </motion.div>
+          )}
+
+          {activeTab === 'examples' && (
+            <motion.div key="examples" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <div className="flex items-center gap-4 mb-12">
+                <div className="w-16 h-16 bg-neon-blue/20 rounded-2xl flex items-center justify-center border border-neon-blue/30 shadow-[0_0_30px_rgba(0,255,255,0.2)]">
+                  <Sparkles className="w-8 h-8 text-neon-blue" />
+                </div>
+                <div>
+                  <h2 className="text-4xl font-display font-bold text-white">Showcase Management</h2>
+                  <p className="text-neon-blue font-bold tracking-widest uppercase text-[10px] mt-1">Curate Home Page Content</p>
+                </div>
+              </div>
+              <ExamplesManagement examples={examples} onAdd={handleAddExample} onDelete={handleDeleteExample} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Toast Notification */}
