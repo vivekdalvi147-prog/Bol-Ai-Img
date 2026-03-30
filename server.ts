@@ -99,7 +99,7 @@ app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
 // API Route to Enhance Prompt (using Bol-AI Engine)
 app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
   try {
-    const { prompt, isEdit } = req.body;
+    const { prompt, isEdit, image_url } = req.body;
     const apiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI;
 
     if (!apiKey) {
@@ -122,9 +122,32 @@ USER INPUT:
 "${prompt}"
 MODE: ${isEdit ? 'IMAGE EDIT (IMG-TO-IMG)' : 'NEW GENERATION'}`;
 
+    const contents: any[] = [{ text: upgradeInstruction }];
+    
+    // If image_url is provided, send it to Gemma for better enhancement
+    if (image_url && image_url.startsWith('http')) {
+      try {
+        const imgRes = await fetch(image_url);
+        if (imgRes.ok) {
+          const buffer = await imgRes.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          const mimeType = imgRes.headers.get('content-type') || 'image/png';
+          contents.push({
+            inlineData: {
+              data: base64,
+              mimeType: mimeType
+            }
+          });
+          console.log("Image sent to Gemma for enhancement.");
+        }
+      } catch (e) {
+        console.warn("Failed to fetch image for Gemma enhancement:", e);
+      }
+    }
+
     const response = await ai.models.generateContent({
       model: "gemma-3-27b-it",
-      contents: upgradeInstruction
+      contents: { parts: contents }
     });
 
     res.json({ enhancedPrompt: response.text });
@@ -201,33 +224,39 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
     const [width, height] = imageSize.split('*').map(Number);
     
     // Standard ModelScope request structure
-    const requestBody: any = {
-      model: model,
-      input: {
-        prompt: userPrompt,
-        image_url: image_url || undefined
-      }
-    };
+    let requestBody: any;
 
-    // Add parameters if applicable
-    if (!image_url) {
-      requestBody.parameters = {
-        n: 1,
-        size: imageSize.replace('x', '*'), // Ensure 1024*1024 format
-        width: width,
-        height: height
+    if (image_url) {
+      // Qwen-Image-Edit specific structure (Img-to-Img)
+      // Very strict prompt length for this model, usually 500-1000 chars
+      const editPrompt = userPrompt.length > 500 ? userPrompt.substring(0, 500) : userPrompt;
+      requestBody = {
+        model: "MusePublic/Qwen-Image-Edit",
+        input: {
+          prompt: editPrompt,
+          image_url: image_url
+        },
+        parameters: {
+          n: 1,
+          size: imageSize.replace('x', '*'),
+          width: width,
+          height: height
+        }
       };
-      // For text-to-image, some models prefer prompt at top level
-      requestBody.prompt = userPrompt;
     } else {
-      // For image-to-image, some models prefer image_url at top level
-      requestBody.image_url = image_url;
-      requestBody.parameters = {
-        n: 1,
-        size: imageSize.replace('x', '*'),
-        width: width,
-        height: height,
-        image_url: image_url
+      // Z-Image-Turbo specific structure (Txt-to-Img)
+      requestBody = {
+        model: model,
+        input: {
+          prompt: userPrompt
+        },
+        parameters: {
+          n: 1,
+          size: imageSize.replace('x', '*'),
+          width: width,
+          height: height
+        },
+        prompt: userPrompt // Some versions prefer top-level
       };
     }
 

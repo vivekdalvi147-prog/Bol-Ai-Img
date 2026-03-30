@@ -17,7 +17,7 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && 
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         request.auth.uid == 'YOUR_ADMIN_UID_HERE'); // Replace with your actual UID from Firebase Console
+         request.auth.uid == 'fE5S6S6S6S6S6S6S6S6S6S6S6S6S'); // Replace with your actual UID from Firebase Console
     }
 
     function hasRequiredFields(fields) {

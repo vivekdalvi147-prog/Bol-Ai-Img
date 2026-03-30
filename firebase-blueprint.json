@@ -75,6 +75,29 @@
         }
       },
       "required": ["uid", "email", "role", "createdAt"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "maintenanceMode": {
+          "type": "number",
+          "description": "0: Off, 1: Full, 2: Soft"
+        },
+        "isEnhanceEnabled": {
+          "type": "boolean",
+          "description": "Whether Bol-AI Enhance is enabled globally."
+        },
+        "isTxtToImgEnabled": {
+          "type": "boolean",
+          "description": "Whether Text-to-Image is enabled globally."
+        },
+        "isImgToImgEnabled": {
+          "type": "boolean",
+          "description": "Whether Image-to-Image is enabled globally."
+        }
+      }
     }
   },
   "firestore": {
@@ -85,6 +108,10 @@
     "/users/{userId}": {
       "schema": "User",
       "description": "Collection of user profiles."
+    },
+    "/settings/general": {
+      "schema": "Settings",
+      "description": "Global application settings."
     }
   }
 }

@@ -6,7 +6,7 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, ImagePlus } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, ImagePlus, Copy, Settings as SettingsIcon, ToggleLeft, ToggleRight, Activity, ShieldAlert } from 'lucide-react';
 import { auth, googleProvider, db } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, doc, getDoc, orderBy, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
@@ -123,6 +123,99 @@ class AppErrorBoundary extends React.Component<any, any> {
   }
 }
 
+// Admin Panel Component
+function AdminPanel({ maintenanceMode, isEnhanceGlobal, isTxtToImgGlobal, isImgToImgGlobal, onUpdateSettings }: any) {
+  return (
+    <motion.section 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-4xl mx-auto py-12 px-6"
+    >
+      <div className="flex items-center gap-4 mb-12">
+        <div className="w-16 h-16 bg-neon-purple/20 rounded-2xl flex items-center justify-center border border-neon-purple/30 shadow-[0_0_30px_rgba(176,38,255,0.2)]">
+          <SettingsIcon className="w-8 h-8 text-neon-purple" />
+        </div>
+        <div>
+          <h2 className="text-4xl font-display font-bold text-white">Admin Control Center</h2>
+          <p className="text-neon-purple font-bold tracking-widest uppercase text-[10px] mt-1">System Override & Governance</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Maintenance Mode */}
+        <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
+          <div className="flex items-center gap-3 mb-2">
+            <Activity className="w-5 h-5 text-neon-blue" />
+            <h3 className="text-xl font-bold text-white">System Status</h3>
+          </div>
+          
+          <div className="space-y-4">
+            {[
+              { label: 'Operational', value: 0, desc: 'All systems go. Normal operation.' },
+              { label: 'Maintenance', value: 1, desc: 'Full lockdown. Generation disabled.' },
+              { label: 'Soft Maintenance', value: 2, desc: 'Warnings active but systems open.' }
+            ].map((mode) => (
+              <button
+                key={mode.value}
+                onClick={() => onUpdateSettings({ maintenanceMode: mode.value })}
+                className={`w-full p-4 rounded-2xl border transition-all text-left group ${
+                  maintenanceMode === mode.value 
+                    ? 'bg-neon-blue/10 border-neon-blue/50 shadow-[0_0_20px_rgba(0,255,255,0.1)]' 
+                    : 'bg-white/5 border-white/5 hover:border-white/20'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`font-bold ${maintenanceMode === mode.value ? 'text-neon-blue' : 'text-white/70'}`}>{mode.label}</span>
+                  {maintenanceMode === mode.value && <div className="w-2 h-2 rounded-full bg-neon-blue animate-pulse" />}
+                </div>
+                <p className="text-[10px] text-white/40 leading-relaxed">{mode.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Feature Toggles */}
+        <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
+          <div className="flex items-center gap-3 mb-2">
+            <ShieldAlert className="w-5 h-5 text-neon-purple" />
+            <h3 className="text-xl font-bold text-white">Feature Governance</h3>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { label: 'Bol-AI Enhance', key: 'isEnhanceGlobal', current: isEnhanceGlobal },
+              { label: 'Text-to-Image', key: 'isTxtToImgGlobal', current: isTxtToImgGlobal },
+              { label: 'Image-to-Image', key: 'isImgToImgGlobal', current: isImgToImgGlobal }
+            ].map((feature) => (
+              <div key={feature.key} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+                <div>
+                  <p className="text-sm font-bold text-white">{feature.label}</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-widest">{feature.current ? 'Active' : 'Disabled'}</p>
+                </div>
+                <button 
+                  onClick={() => onUpdateSettings({ [feature.key]: !feature.current })}
+                  className={`p-2 rounded-xl transition-all ${feature.current ? 'text-neon-blue bg-neon-blue/10' : 'text-white/20 bg-white/5'}`}
+                >
+                  {feature.current ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-12 p-8 glass rounded-[2rem] border border-red-500/20 bg-red-500/5">
+        <h3 className="text-lg font-bold text-red-500 mb-2 flex items-center gap-2">
+          <ShieldAlert className="w-5 h-5" /> Admin Security Warning
+        </h3>
+        <p className="text-xs text-red-400/70 leading-relaxed">
+          Changes made here affect all users globally. Ensure you have verified the system status before toggling maintenance modes or disabling core engine features. Unauthorized access to this panel is strictly prohibited.
+        </p>
+      </div>
+    </motion.section>
+  );
+}
+
 function AppContent() {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -144,17 +237,21 @@ function AppContent() {
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [userIp, setUserIp] = useState('unknown');
   const [isUiMode, setIsUiMode] = useState(() => localStorage.getItem('bol_ai_ui_mode') === 'true');
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [isLoginSliderOpen, setIsLoginSliderOpen] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'generator' | 'gallery' | 'my-creations'>('generator');
+  const [activeTab, setActiveTab] = useState<'generator' | 'gallery' | 'my-creations' | 'admin'>('generator');
   const [myImages, setMyImages] = useState<any[]>([]);
   const [sharedImage, setSharedImage] = useState<any>(null);
   const [maintenanceMode, setMaintenanceMode] = useState(0); // 0: Off, 1: Full, 2: Soft
-  const [userIp, setUserIp] = useState<string>('unknown');
+  const [isEnhanceGlobal, setIsEnhanceGlobal] = useState(true);
+  const [isTxtToImgGlobal, setIsTxtToImgGlobal] = useState(true);
+  const [isImgToImgGlobal, setIsImgToImgGlobal] = useState(true);
+  const isAdmin = user?.uid === 'fE5S6S6S6S6S6S6S6S6S6S6S6S6S'; // Placeholder, user will see their UID and can update this
   const [activePage, setActivePage] = useState<'home' | 'about' | 'privacy' | 'contact'>('home');
   const [exampleImages, setExampleImages] = useState<string[]>(EXAMPLE_IMAGES);
   const [generationsCount, setGenerationsCount] = useState(() => {
@@ -165,7 +262,11 @@ function AppContent() {
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
       if (docSnap.exists()) {
-        setMaintenanceMode(docSnap.data().maintenanceMode || 0);
+        const data = docSnap.data();
+        setMaintenanceMode(data.maintenanceMode || 0);
+        setIsEnhanceGlobal(data.isEnhanceEnabled !== false);
+        setIsTxtToImgGlobal(data.isTxtToImgEnabled !== false);
+        setIsImgToImgGlobal(data.isImgToImgEnabled !== false);
       }
     }, (error) => {
       console.error("Error fetching settings:", error);
@@ -467,7 +568,7 @@ function AppContent() {
       currentRequestId = reqRef.id;
       console.log("Request tracked with ID:", currentRequestId);
 
-      if (isEnhanceEnabled) {
+      if (isEnhanceEnabled && isEnhanceGlobal) {
         console.log("Enhancing prompt...");
         setIsEnhancing(true);
         try {
@@ -477,7 +578,8 @@ function AppContent() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               prompt: finalPrompt,
-              isEdit: !!referenceImage 
+              isEdit: !!referenceImage,
+              image_url: finalReferenceImageUrl || referenceImage
             }),
           });
 
@@ -824,10 +926,12 @@ function AppContent() {
             </div>
 
             {/* Enhance Toggle */}
-            <div className="flex justify-center">
+            <div className="flex justify-center relative">
               <button 
                 onClick={() => setIsEnhanceEnabled(!isEnhanceEnabled)} 
+                disabled={!isEnhanceGlobal}
                 className={`flex items-center justify-between w-full px-6 py-3.5 rounded-[1.5rem] border transition-all duration-500 group ${
+                  !isEnhanceGlobal ? 'opacity-50 cursor-not-allowed bg-gray-900/50 border-white/5' :
                   isEnhanceEnabled 
                     ? 'bg-neon-purple/5 border-neon-purple/30 shadow-[0_10px_30px_rgba(176,38,255,0.15)]' 
                     : 'bg-black/40 border-white/5 hover:bg-white/5'
@@ -837,14 +941,52 @@ function AppContent() {
                   <div className={`p-2 rounded-xl transition-colors duration-300 ${isEnhanceEnabled ? 'bg-neon-purple/20' : 'bg-white/5'}`}>
                     <Wand2 className={`w-4 h-4 ${isEnhanceEnabled ? 'text-neon-purple animate-pulse' : 'text-white/40'}`} />
                   </div>
-                  <span className={`text-sm font-bold tracking-wider ${isEnhanceEnabled ? 'text-neon-purple' : 'text-white/40'}`}>
-                    Bol-AI Enhance
-                  </span>
+                  <div className="flex flex-col items-start">
+                    <span className={`text-sm font-bold tracking-wider ${isEnhanceEnabled ? 'text-neon-purple' : 'text-white/40'}`}>
+                      Bol-AI Enhance
+                    </span>
+                    {!isEnhanceGlobal && <span className="text-[8px] text-red-500 uppercase font-bold">Disabled by Admin</span>}
+                  </div>
                 </div>
-                <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-500 relative ${isEnhanceEnabled ? 'bg-neon-purple' : 'bg-white/10'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-all duration-500 shadow-[0_0_10px_rgba(255,255,255,0.5)] ${isEnhanceEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                <div className="flex items-center gap-3">
+                  <div 
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTooltip(activeTooltip === 'enhance' ? null : 'enhance');
+                    }}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 transition-colors cursor-pointer"
+                  >
+                    <Info className="w-4 h-4" />
+                  </div>
+                  <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-500 relative ${isEnhanceEnabled ? 'bg-neon-purple' : 'bg-white/10'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white transition-all duration-500 shadow-[0_0_10px_rgba(255,255,255,0.5)] ${isEnhanceEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </div>
                 </div>
               </button>
+              
+              <AnimatePresence>
+                {activeTooltip === 'enhance' && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                    className="absolute bottom-full mb-4 w-72 p-5 glass border border-white/10 rounded-3xl text-xs text-white/70 z-50 shadow-2xl backdrop-blur-3xl"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-2 h-2 rounded-full bg-neon-purple animate-pulse" />
+                      <p className="font-bold text-neon-purple uppercase tracking-widest text-[10px]">Gemma 3 27B Intelligence</p>
+                    </div>
+                    <p className="mb-3 leading-relaxed">Bol-AI Enhance is a <span className="text-white font-medium">next-gen prompt engineering engine</span> that uses the Gemma 3 27B IT model to analyze your input and expand it into a professional-grade prompt.</p>
+                    <ul className="space-y-2 text-[10px]">
+                      <li className="flex items-center gap-2"><Sparkles className="w-3 h-3 text-neon-blue" /> Adds cinematic lighting & 8K details</li>
+                      <li className="flex items-center gap-2"><Sparkles className="w-3 h-3 text-neon-blue" /> Optimizes composition & camera angles</li>
+                      <li className="flex items-center gap-2"><Sparkles className="w-3 h-3 text-neon-blue" /> Translates & expands multi-language input</li>
+                    </ul>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -961,19 +1103,24 @@ function AppContent() {
                 </div>
                 <button 
                   onClick={handleGenerate}
-                  disabled={(!prompt.trim() && !referenceImage) || isGenerating || isEnhancing || maintenanceMode === 1}
-                  className="bg-gradient-to-r from-neon-blue to-neon-purple px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
+                  disabled={(!prompt.trim() && !referenceImage) || isGenerating || isEnhancing || maintenanceMode === 1 || (!isTxtToImgGlobal && !referenceImage) || (!isImgToImgGlobal && !!referenceImage)}
+                  className={`bg-gradient-to-r from-neon-blue to-neon-purple px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden ${
+                    (!isTxtToImgGlobal && !referenceImage) || (!isImgToImgGlobal && !!referenceImage) ? 'grayscale' : ''
+                  }`}
                 >
                   <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                   {isGenerating ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
                     <>
-                      Generate
+                      {(!isTxtToImgGlobal && !referenceImage) || (!isImgToImgGlobal && !!referenceImage) ? 'Disabled' : 'Generate'}
                       <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
                 </button>
+                {((!isTxtToImgGlobal && !referenceImage) || (!isImgToImgGlobal && !!referenceImage)) && (
+                  <p className="absolute -bottom-6 left-0 right-0 text-center text-[10px] text-red-500 font-bold uppercase tracking-widest">Mode Disabled by Admin</p>
+                )}
               </div>
             </div>
           </motion.div>
@@ -1253,6 +1400,22 @@ function AppContent() {
           </section>
           )}
           </>
+        ) : activeTab === 'admin' && isAdmin ? (
+          <AdminPanel 
+            maintenanceMode={maintenanceMode} 
+            isEnhanceGlobal={isEnhanceGlobal}
+            isTxtToImgGlobal={isTxtToImgGlobal}
+            isImgToImgGlobal={isImgToImgGlobal}
+            onUpdateSettings={async (newSettings) => {
+              try {
+                await setDoc(doc(db, 'settings', 'general'), newSettings, { merge: true });
+                setShowToast("Settings updated successfully!");
+              } catch (e) {
+                console.error("Failed to update settings:", e);
+                setShowToast("Failed to update settings.");
+              }
+            }}
+          />
         ) : activePage === 'about' ? (
           <section className="max-w-4xl mx-auto py-12">
             <h2 className="text-4xl font-display font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-white">About Us</h2>
@@ -1347,6 +1510,9 @@ function AppContent() {
                   <button onClick={() => { setActiveTab('gallery'); setIsMenuOpen(false); }} className="text-left hover:text-neon-blue transition-colors py-2">Gallery</button>
                   {user && (
                     <button onClick={() => { setActiveTab('my-creations'); setIsMenuOpen(false); }} className="text-left hover:text-neon-blue transition-colors py-2">My Creations</button>
+                  )}
+                  {isAdmin && (
+                    <button onClick={() => { setActiveTab('admin'); setIsMenuOpen(false); }} className="text-left text-neon-purple hover:text-white transition-colors py-2 font-bold">Admin Panel</button>
                   )}
                 </nav>
 
@@ -1539,7 +1705,19 @@ function AppContent() {
                         )}
                       </div>
                       <h3 className="text-2xl font-bold text-white">{user.displayName}</h3>
-                      <p className="text-white/40 text-sm font-mono">{user.email}</p>
+                      <p className="text-white/40 text-sm font-mono mb-2">{user.email}</p>
+                      <div className="bg-white/5 p-2 rounded-lg border border-white/10 flex items-center gap-2">
+                        <p className="text-[10px] text-white/30 font-mono select-all">UID: {user.uid}</p>
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(user.uid);
+                            setShowToast("UID copied to clipboard!");
+                          }}
+                          className="text-neon-blue hover:text-white transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                     <button 
                       onClick={async () => {
