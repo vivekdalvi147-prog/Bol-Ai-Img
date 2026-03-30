@@ -91,13 +91,14 @@ service cloud.firestore {
 
     function isValidUser(data) {
       return hasRequiredFields(['uid', 'email']) &&
-             hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'lastLogin', 'role', 'createdAt']) &&
+             hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'lastLogin', 'role', 'createdAt', 'generationsCount', 'lastGenerationDate']) &&
              data.uid is string && data.uid.size() <= 128 &&
              data.email is string && data.email.size() <= 255 &&
              isValidOptionalString('displayName', 0, 100) &&
              isValidOptionalString('photoURL', 0, 500) &&
-             (!('role' in data) || data.role == null || data.role in ['admin', 'user']) &&
-             (!('lastLogin' in data) || isRecent(data.lastLogin));
+             isValidNumber('generationsCount', 0, 1000000) &&
+             isValidOptionalString('lastGenerationDate', 0, 20) &&
+             (!('role' in data) || data.role == null || data.role in ['admin', 'user']);
     }
 
     // ===============================================================
@@ -126,12 +127,15 @@ service cloud.firestore {
       
       // Users can write their own profile, but only admin can change roles
       allow create: if isValidUser(request.resource.data) && isOwner(userId) && 
-                      (!('role' in request.resource.data) || request.resource.data.role == 'user');
+                      (!('role' in request.resource.data) || request.resource.data.role == 'user') &&
+                      (!('lastLogin' in request.resource.data) || isRecent(request.resource.data.lastLogin));
       allow update: if isValidUser(request.resource.data) && 
                       (isAdmin() || (isOwner(userId) && 
                         (!('role' in request.resource.data) || 
                          !('role' in resource.data) || 
-                         request.resource.data.role == resource.data.role)));
+                         request.resource.data.role == resource.data.role) &&
+                        // Only check recency if lastLogin is being updated
+                        (request.resource.data.lastLogin == resource.data.lastLogin || isRecent(request.resource.data.lastLogin))));
     }
     
     match /settings/{docId} {

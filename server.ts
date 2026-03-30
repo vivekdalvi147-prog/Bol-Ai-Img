@@ -58,11 +58,19 @@ async function fetchWithRetry(url: string, options: any, retries = 5, delay = 30
       return response;
     } catch (error: any) {
       if (i === retries - 1) throw error;
+      
+      // Handle connection refused specifically
+      if (error.code === 'ECONNREFUSED' || error.message.includes('connection refused')) {
+        console.warn(`Connection refused (attempt ${i + 1}/${retries}). The Bol-AI server might be down. Retrying in ${delay * 2}ms...`);
+        await new Promise(res => setTimeout(res, delay * 2));
+        continue;
+      }
+
       console.warn(`Fetch failed (attempt ${i + 1}/${retries}): ${error.message}. Retrying in ${delay}ms...`);
       await new Promise(res => setTimeout(res, delay));
     }
   }
-  throw new Error("Fetch failed after retries");
+  throw new Error("Bol-AI Server is currently unreachable. Please try again in a few minutes.");
 }
 
 // API Route to Upload to ImgBB
@@ -146,7 +154,7 @@ MODE: ${isEdit ? 'IMAGE EDIT (IMG-TO-IMG)' : 'NEW GENERATION'}`;
     }
 
     const response = await ai.models.generateContent({
-      model: "gemma-3-27b-it",
+      model: "gemini-3-flash-preview",
       contents: { parts: contents }
     });
 

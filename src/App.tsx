@@ -6,10 +6,10 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, ImagePlus, Copy, Settings as SettingsIcon, ToggleLeft, ToggleRight, Activity, ShieldAlert } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, ImagePlus, Copy } from 'lucide-react';
 import { auth, googleProvider, db } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, doc, getDoc, orderBy, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, doc, getDoc, orderBy, setDoc, updateDoc, onSnapshot, increment } from 'firebase/firestore';
 
 // Add your example image URLs here! You can use local paths or full URLs.
 const EXAMPLE_IMAGES = [
@@ -123,98 +123,7 @@ class AppErrorBoundary extends React.Component<any, any> {
   }
 }
 
-// Admin Panel Component
-function AdminPanel({ maintenanceMode, isEnhanceGlobal, isTxtToImgGlobal, isImgToImgGlobal, onUpdateSettings }: any) {
-  return (
-    <motion.section 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto py-12 px-6"
-    >
-      <div className="flex items-center gap-4 mb-12">
-        <div className="w-16 h-16 bg-neon-purple/20 rounded-2xl flex items-center justify-center border border-neon-purple/30 shadow-[0_0_30px_rgba(176,38,255,0.2)]">
-          <SettingsIcon className="w-8 h-8 text-neon-purple" />
-        </div>
-        <div>
-          <h2 className="text-4xl font-display font-bold text-white">Admin Control Center</h2>
-          <p className="text-neon-purple font-bold tracking-widest uppercase text-[10px] mt-1">System Override & Governance</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Maintenance Mode */}
-        <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <Activity className="w-5 h-5 text-neon-blue" />
-            <h3 className="text-xl font-bold text-white">System Status</h3>
-          </div>
-          
-          <div className="space-y-4">
-            {[
-              { label: 'Operational', value: 0, desc: 'All systems go. Normal operation.' },
-              { label: 'Maintenance', value: 1, desc: 'Full lockdown. Generation disabled.' },
-              { label: 'Soft Maintenance', value: 2, desc: 'Warnings active but systems open.' }
-            ].map((mode) => (
-              <button
-                key={mode.value}
-                onClick={() => onUpdateSettings({ maintenanceMode: mode.value })}
-                className={`w-full p-4 rounded-2xl border transition-all text-left group ${
-                  maintenanceMode === mode.value 
-                    ? 'bg-neon-blue/10 border-neon-blue/50 shadow-[0_0_20px_rgba(0,255,255,0.1)]' 
-                    : 'bg-white/5 border-white/5 hover:border-white/20'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`font-bold ${maintenanceMode === mode.value ? 'text-neon-blue' : 'text-white/70'}`}>{mode.label}</span>
-                  {maintenanceMode === mode.value && <div className="w-2 h-2 rounded-full bg-neon-blue animate-pulse" />}
-                </div>
-                <p className="text-[10px] text-white/40 leading-relaxed">{mode.desc}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Feature Toggles */}
-        <div className="glass p-8 rounded-[2rem] border border-white/10 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <ShieldAlert className="w-5 h-5 text-neon-purple" />
-            <h3 className="text-xl font-bold text-white">Feature Governance</h3>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              { label: 'Bol-AI Enhance', key: 'isEnhanceGlobal', current: isEnhanceGlobal },
-              { label: 'Text-to-Image', key: 'isTxtToImgGlobal', current: isTxtToImgGlobal },
-              { label: 'Image-to-Image', key: 'isImgToImgGlobal', current: isImgToImgGlobal }
-            ].map((feature) => (
-              <div key={feature.key} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
-                <div>
-                  <p className="text-sm font-bold text-white">{feature.label}</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-widest">{feature.current ? 'Active' : 'Disabled'}</p>
-                </div>
-                <button 
-                  onClick={() => onUpdateSettings({ [feature.key]: !feature.current })}
-                  className={`p-2 rounded-xl transition-all ${feature.current ? 'text-neon-blue bg-neon-blue/10' : 'text-white/20 bg-white/5'}`}
-                >
-                  {feature.current ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-12 p-8 glass rounded-[2rem] border border-red-500/20 bg-red-500/5">
-        <h3 className="text-lg font-bold text-red-500 mb-2 flex items-center gap-2">
-          <ShieldAlert className="w-5 h-5" /> Admin Security Warning
-        </h3>
-        <p className="text-xs text-red-400/70 leading-relaxed">
-          Changes made here affect all users globally. Ensure you have verified the system status before toggling maintenance modes or disabling core engine features. Unauthorized access to this panel is strictly prohibited.
-        </p>
-      </div>
-    </motion.section>
-  );
-}
+// Admin Panel Component removed and moved to admin.html
 
 function AppContent() {
   const [prompt, setPrompt] = useState('');
@@ -244,13 +153,14 @@ function AppContent() {
   const [isLoginSliderOpen, setIsLoginSliderOpen] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'generator' | 'gallery' | 'my-creations' | 'admin'>('generator');
+  const [activeTab, setActiveTab] = useState<'generator' | 'gallery' | 'my-creations'>('generator');
   const [myImages, setMyImages] = useState<any[]>([]);
   const [sharedImage, setSharedImage] = useState<any>(null);
   const [maintenanceMode, setMaintenanceMode] = useState(0); // 0: Off, 1: Full, 2: Soft
   const [isEnhanceGlobal, setIsEnhanceGlobal] = useState(true);
   const [isTxtToImgGlobal, setIsTxtToImgGlobal] = useState(true);
   const [isImgToImgGlobal, setIsImgToImgGlobal] = useState(true);
+  const [userLimit, setUserLimit] = useState(10);
   const isAdmin = user?.uid === '2cwK3E4SSvezZRop3VE14lbfJdc2'; // Updated with user's UID
   const [activePage, setActivePage] = useState<'home' | 'about' | 'privacy' | 'contact'>('home');
   const [exampleImages, setExampleImages] = useState<string[]>(EXAMPLE_IMAGES);
@@ -264,9 +174,10 @@ function AppContent() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setMaintenanceMode(data.maintenanceMode || 0);
-        setIsEnhanceGlobal(data.isEnhanceEnabled !== false);
-        setIsTxtToImgGlobal(data.isTxtToImgEnabled !== false);
-        setIsImgToImgGlobal(data.isImgToImgEnabled !== false);
+        setIsEnhanceGlobal(data.isEnhanceGlobal !== false);
+        setIsTxtToImgGlobal(data.isTxtToImgGlobal !== false);
+        setIsImgToImgGlobal(data.isImgToImgGlobal !== false);
+        setUserLimit(data.userLimit || 10);
       }
     }, (error) => {
       console.error("Error fetching settings:", error);
@@ -513,6 +424,40 @@ function AppContent() {
       return;
     }
 
+    // Check User Limits
+    if (!isAdmin) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const userData = userDoc.data();
+        const today = new Date().toISOString().split('T')[0];
+        
+        let count = userData?.generationsCount || 0;
+        if (userData?.lastGenerationDate !== today) {
+          count = 0; // Reset for new day
+        }
+
+        if (count >= userLimit) {
+          setError(`Generation Limit Reached: You have used all your ${userLimit} daily generations. Please try again tomorrow or contact support for more.`);
+          setIsGenerating(false);
+          return;
+        }
+      } catch (e) {
+        console.error("Error checking user limit:", e);
+      }
+    }
+
+    // Check Global Feature Flags
+    if (!referenceImage && !isTxtToImgGlobal) {
+      setError("Text-to-Image generation is currently disabled by the administrator.");
+      setIsGenerating(false);
+      return;
+    }
+    if (referenceImage && !isImgToImgGlobal) {
+      setError("Image-to-Image generation is currently disabled by the administrator.");
+      setIsGenerating(false);
+      return;
+    }
+
     console.log("Starting handleGenerate...");
     setIsEnhancing(false);
     setError(null);
@@ -725,6 +670,37 @@ function AppContent() {
             setGeneratedSize(selectedSize);
             isComplete = true;
 
+            // Update User Generation Count
+            if (user && !isAdmin) {
+              try {
+                const userRef = doc(db, 'users', user.uid);
+                const today = new Date().toISOString().split('T')[0];
+                const userDoc = await getDoc(userRef);
+                const userData = userDoc.data();
+                
+                if (userData?.lastGenerationDate !== today) {
+                  try {
+                    await updateDoc(userRef, {
+                      generationsCount: 1,
+                      lastGenerationDate: today
+                    });
+                  } catch (e) {
+                    handleFirestoreError(e, OperationType.UPDATE, `users/${user.uid}`);
+                  }
+                } else {
+                  try {
+                    await updateDoc(userRef, {
+                      generationsCount: increment(1)
+                    });
+                  } catch (e) {
+                    handleFirestoreError(e, OperationType.UPDATE, `users/${user.uid}`);
+                  }
+                }
+              } catch (e) {
+                console.error("Error updating user generation count:", e);
+              }
+            }
+
             // Save to Firestore for ALL users (so admin can see it)
             try {
               const newGen = {
@@ -924,13 +900,12 @@ function AppContent() {
               </div>
             </div>
 
-            {/* Enhance Toggle */}
+          {/* Enhance Toggle */}
+          {isEnhanceGlobal && (
             <div className="flex justify-center relative">
               <button 
                 onClick={() => setIsEnhanceEnabled(!isEnhanceEnabled)} 
-                disabled={!isEnhanceGlobal}
                 className={`flex items-center justify-between w-full px-6 py-3.5 rounded-[1.5rem] border transition-all duration-500 group ${
-                  !isEnhanceGlobal ? 'opacity-50 cursor-not-allowed bg-gray-900/50 border-white/5' :
                   isEnhanceEnabled 
                     ? 'bg-neon-purple/5 border-neon-purple/30 shadow-[0_10px_30px_rgba(176,38,255,0.15)]' 
                     : 'bg-black/40 border-white/5 hover:bg-white/5'
@@ -944,7 +919,6 @@ function AppContent() {
                     <span className={`text-sm font-bold tracking-wider ${isEnhanceEnabled ? 'text-neon-purple' : 'text-white/40'}`}>
                       Bol-AI Enhance
                     </span>
-                    {!isEnhanceGlobal && <span className="text-[8px] text-red-500 uppercase font-bold">Disabled by Admin</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -975,9 +949,9 @@ function AppContent() {
                   >
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-2 h-2 rounded-full bg-neon-purple animate-pulse" />
-                      <p className="font-bold text-neon-purple uppercase tracking-widest text-[10px]">Gemma 3 27B IT</p>
+                      <p className="font-bold text-neon-purple uppercase tracking-widest text-[10px]">Bol-AI Engine</p>
                     </div>
-                    <p className="mb-3 leading-relaxed">Bol-AI Enhance is a <span className="text-white font-medium">next-gen prompt engineering engine</span> that uses the Gemma 3 27B IT model to analyze your input and expand it into a professional-grade prompt.</p>
+                    <p className="mb-3 leading-relaxed">Bol-AI Enhance is a <span className="text-white font-medium">next-gen prompt engineering engine</span> that uses the Bol-AI model to analyze your input and expand it into a professional-grade prompt.</p>
                     <ul className="space-y-2 text-[10px]">
                       <li className="flex items-center gap-2"><Sparkles className="w-3 h-3 text-neon-blue" /> Adds cinematic lighting & 8K details</li>
                       <li className="flex items-center gap-2"><Sparkles className="w-3 h-3 text-neon-blue" /> Optimizes composition & camera angles</li>
@@ -987,6 +961,7 @@ function AppContent() {
                 )}
               </AnimatePresence>
             </div>
+          )}
           </div>
 
           <motion.div 
@@ -1053,13 +1028,15 @@ function AppContent() {
                       }
                     }}
                   />
-                  <label 
-                    htmlFor="ref-image"
-                    className={`p-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${referenceImage ? 'bg-neon-blue text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
-                  >
-                    <ImagePlus className="w-4 h-4" />
-                    <span className="hidden md:inline">REF IMG</span>
-                  </label>
+                  {isImgToImgGlobal && (
+                    <label 
+                      htmlFor="ref-image"
+                      className={`p-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${referenceImage ? 'bg-neon-blue text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                      <span className="hidden md:inline">REF IMG</span>
+                    </label>
+                  )}
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => setIsUiMode(!isUiMode)}
@@ -1399,22 +1376,6 @@ function AppContent() {
           </section>
           )}
           </>
-        ) : activeTab === 'admin' && isAdmin ? (
-          <AdminPanel 
-            maintenanceMode={maintenanceMode} 
-            isEnhanceGlobal={isEnhanceGlobal}
-            isTxtToImgGlobal={isTxtToImgGlobal}
-            isImgToImgGlobal={isImgToImgGlobal}
-            onUpdateSettings={async (newSettings) => {
-              try {
-                await setDoc(doc(db, 'settings', 'general'), newSettings, { merge: true });
-                setShowToast("Settings updated successfully!");
-              } catch (e) {
-                console.error("Failed to update settings:", e);
-                setShowToast("Failed to update settings.");
-              }
-            }}
-          />
         ) : activePage === 'about' ? (
           <section className="max-w-4xl mx-auto py-12">
             <h2 className="text-4xl font-display font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-white">About Us</h2>
@@ -1511,7 +1472,7 @@ function AppContent() {
                     <button onClick={() => { setActiveTab('my-creations'); setIsMenuOpen(false); }} className="text-left hover:text-neon-blue transition-colors py-2">My Creations</button>
                   )}
                   {isAdmin && (
-                    <button onClick={() => { setActiveTab('admin'); setIsMenuOpen(false); }} className="text-left text-neon-purple hover:text-white transition-colors py-2 font-bold">Admin Panel</button>
+                    <a href="/admin.html" className="text-left text-neon-purple hover:text-white transition-colors py-2 font-bold">Admin Panel</a>
                   )}
                 </nav>
 
