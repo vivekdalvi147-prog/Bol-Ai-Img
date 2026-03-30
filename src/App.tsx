@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, ImagePlus } from 'lucide-react';
 import { auth, googleProvider, db } from './lib/firebase';
@@ -21,7 +22,108 @@ const EXAMPLE_IMAGES = [
   'https://i.ibb.co/4ZP81Tr7/v11.png'
 ];
 
-export default function App() {
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class AppErrorBoundary extends React.Component<any, any> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    (this as any).state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("AppErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if ((this as any).state.hasError) {
+      return (
+        <div className="min-h-screen bg-black flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-red-500/50 rounded-2xl p-8 max-w-md w-full text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
+            <p className="text-zinc-400 mb-6">
+              {(this as any).state.error?.message.includes('{"error":') 
+                ? "A database error occurred. Please try again later."
+                : (this as any).state.error?.message || "An unexpected error occurred."}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors"
+            >
+              Reload Application
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (this as any).props.children;
+  }
+}
+
+function AppContent() {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -347,16 +449,21 @@ export default function App() {
 
       // Track request in Firestore
       console.log("Tracking request in Firestore...");
-      const reqRef = await addDoc(collection(db, 'requests'), {
-        userId: user ? user.uid : 'anonymous',
-        userEmail: user ? (user.email || user.providerData?.find(p => p.email)?.email || 'N/A') : 'anonymous',
-        userIp: userIp,
-        prompt: originalUserPrompt,
-        enhancedPrompt: isEnhanceEnabled ? null : originalUserPrompt, // Will be updated if enhanced
-        referenceImageUrl: finalReferenceImageUrl,
-        status: 'active',
-        createdAt: serverTimestamp()
-      });
+      let reqRef;
+      try {
+        reqRef = await addDoc(collection(db, 'requests'), {
+          userId: user ? user.uid : 'anonymous',
+          userEmail: user ? (user.email || user.providerData?.find(p => p.email)?.email || 'N/A') : 'anonymous',
+          userIp: userIp,
+          prompt: originalUserPrompt,
+          enhancedPrompt: isEnhanceEnabled ? null : originalUserPrompt, // Will be updated if enhanced
+          referenceImageUrl: finalReferenceImageUrl,
+          status: 'active',
+          createdAt: serverTimestamp()
+        });
+      } catch (e) {
+        handleFirestoreError(e, OperationType.CREATE, 'requests');
+      }
       currentRequestId = reqRef.id;
       console.log("Request tracked with ID:", currentRequestId);
 
@@ -368,7 +475,10 @@ export default function App() {
           const enhanceRes = await fetch('/api/enhance-prompt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: finalPrompt }),
+            body: JSON.stringify({ 
+              prompt: finalPrompt,
+              isEdit: !!referenceImage 
+            }),
           });
 
           if (enhanceRes.ok) {
@@ -379,9 +489,13 @@ export default function App() {
               console.log("Prompt enhanced:", finalPrompt);
               // Update request with enhanced prompt
               if (currentRequestId) {
-                await updateDoc(doc(db, 'requests', currentRequestId), {
-                  enhancedPrompt: finalPrompt
-                });
+                try {
+                  await updateDoc(doc(db, 'requests', currentRequestId), {
+                    enhancedPrompt: finalPrompt
+                  });
+                } catch (e) {
+                  handleFirestoreError(e, OperationType.UPDATE, `requests/${currentRequestId}`);
+                }
               }
             }
           } else {
@@ -1466,5 +1580,13 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AppErrorBoundary>
+      <AppContent />
+    </AppErrorBoundary>
   );
 }
