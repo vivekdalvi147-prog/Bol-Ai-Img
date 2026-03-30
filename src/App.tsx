@@ -251,7 +251,7 @@ function AppContent() {
   const [isEnhanceGlobal, setIsEnhanceGlobal] = useState(true);
   const [isTxtToImgGlobal, setIsTxtToImgGlobal] = useState(true);
   const [isImgToImgGlobal, setIsImgToImgGlobal] = useState(true);
-  const isAdmin = user?.uid === 'fE5S6S6S6S6S6S6S6S6S6S6S6S6S'; // Placeholder, user will see their UID and can update this
+  const isAdmin = user?.uid === '2cwK3E4SSvezZRop3VE14lbfJdc2'; // Updated with user's UID
   const [activePage, setActivePage] = useState<'home' | 'about' | 'privacy' | 'contact'>('home');
   const [exampleImages, setExampleImages] = useState<string[]>(EXAMPLE_IMAGES);
   const [generationsCount, setGenerationsCount] = useState(() => {
