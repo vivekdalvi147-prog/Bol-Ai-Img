@@ -6,10 +6,11 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, ImagePlus, Copy } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, ImagePlus, Copy, Edit } from 'lucide-react';
 import { auth, googleProvider, db } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, doc, getDoc, orderBy, setDoc, updateDoc, onSnapshot, increment } from 'firebase/firestore';
+import { ImageEditor } from './components/ImageEditor';
 
 // Add your example image URLs here! You can use local paths or full URLs.
 const EXAMPLE_IMAGES = [
@@ -137,6 +138,7 @@ function AppContent() {
   const [isEnhanceEnabled, setIsEnhanceEnabled] = useState(() => localStorage.getItem('bol_ai_enhance') === 'false' ? false : true);
   const [generatedSize, setGeneratedSize] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
@@ -1029,6 +1031,13 @@ function AppContent() {
                         </div>
                         <div className="flex flex-col sm:flex-row gap-3">
                           <button 
+                            onClick={() => setIsEditorOpen(true)}
+                            className="w-full sm:w-auto px-6 py-3 bg-neon-purple/20 text-neon-purple font-bold rounded-2xl hover:bg-neon-purple hover:text-white transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 border border-neon-purple/30 active:scale-95 shrink-0"
+                          >
+                            <Edit className="w-5 h-5" />
+                            Edit
+                          </button>
+                          <button 
                             onClick={() => handleDownload(generatedImage!)}
                             className="w-full sm:w-auto px-8 py-3 bg-neon-blue text-black font-bold rounded-2xl hover:bg-white hover:text-black transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,255,0.5)] hover:shadow-[0_0_30px_rgba(255,255,255,0.8)] active:scale-95 shrink-0"
                           >
@@ -1063,7 +1072,7 @@ function AppContent() {
             <h3 className="text-3xl font-display font-bold">Gallery</h3>
           </div>
           
-          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
+          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6" role="list" aria-label="Example image gallery">
             {exampleImages.map((img, idx) => (
               <motion.div
                 key={idx}
@@ -1072,10 +1081,11 @@ function AppContent() {
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.6, delay: (idx % 4) * 0.1, ease: "easeOut" }}
                 className="relative group break-inside-avoid rounded-3xl overflow-hidden glass border border-white/10 shadow-lg"
+                role="listitem"
               >
                 <img 
                   src={img.startsWith('http') ? img : `/examples/${img}`} 
-                  alt={`Gallery ${idx + 1}`}
+                  alt={`Example masterpiece ${idx + 1}`}
                   className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-105"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://picsum.photos/seed/ai${idx}/800/800`;
@@ -1088,9 +1098,10 @@ function AppContent() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-end p-4">
                   <button 
                     onClick={() => handleDownload(img.startsWith('http') ? img : `/examples/${img}`)}
-                    className="p-3 bg-neon-blue text-black rounded-xl hover:bg-white transition-colors active:scale-95 shadow-[0_0_15px_rgba(0,255,255,0.4)]"
+                    className="p-3 bg-neon-blue text-black rounded-xl hover:bg-white transition-colors active:scale-95 shadow-[0_0_15px_rgba(0,255,255,0.4)] focus:outline-none focus:ring-2 focus:ring-neon-blue"
+                    aria-label="Download this example image"
                   >
-                    <Download className="w-5 h-5" />
+                    <Download className="w-5 h-5" aria-hidden="true" />
                   </button>
                 </div>
               </motion.div>
@@ -1109,12 +1120,12 @@ function AppContent() {
             
             {myImages.length === 0 ? (
               <div className="text-center py-20 bg-white/5 rounded-3xl border border-white/10">
-                <ImageIcon className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                <ImageIcon className="w-16 h-16 text-white/20 mx-auto mb-4" aria-hidden="true" />
                 <p className="text-white/50 text-lg">You haven't generated any images yet.</p>
-                <button onClick={() => setActiveTab('generator')} className="mt-6 px-6 py-2 bg-neon-blue/20 text-neon-blue rounded-xl hover:bg-neon-blue/30 transition-colors">Go to Generator</button>
+                <button onClick={() => setActiveTab('generator')} className="mt-6 px-6 py-2 bg-neon-blue/20 text-neon-blue rounded-xl hover:bg-neon-blue/30 transition-colors focus:outline-none focus:ring-2 focus:ring-neon-blue">Go to Generator</button>
               </div>
             ) : (
-              <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
+              <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6" role="list" aria-label="My generated images">
                 {myImages.map((img, idx) => (
                   <motion.div
                     key={img.id}
@@ -1122,10 +1133,11 @@ function AppContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: (idx % 4) * 0.1 }}
                     className="relative group break-inside-avoid rounded-3xl overflow-hidden glass border border-white/10 shadow-lg"
+                    role="listitem"
                   >
                     <img 
                       src={img.imageUrl} 
-                      alt={img.prompt}
+                      alt={`Generated image for prompt: ${img.prompt}`}
                       className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-105"
                       onContextMenu={(e) => e.preventDefault()}
                       referrerPolicy="no-referrer"
@@ -1133,20 +1145,29 @@ function AppContent() {
                     {/* Controls Overlay */}
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => handleShare(img.id)} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md transition-colors" title="Share">
-                          <Share2 className="w-4 h-4 text-white" />
+                        <button 
+                          onClick={() => handleShare(img.id)} 
+                          className="p-2 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md transition-colors focus:outline-none focus:ring-2 focus:ring-white" 
+                          aria-label="Share this image"
+                        >
+                          <Share2 className="w-4 h-4 text-white" aria-hidden="true" />
                         </button>
-                        <button onClick={() => handleDelete(img.id)} className="p-2 bg-red-500/20 hover:bg-red-500/40 rounded-xl backdrop-blur-md transition-colors" title="Delete">
-                          <Trash2 className="w-4 h-4 text-red-500" />
+                        <button 
+                          onClick={() => handleDelete(img.id)} 
+                          className="p-2 bg-red-500/20 hover:bg-red-500/40 rounded-xl backdrop-blur-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500" 
+                          aria-label="Delete this image"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" aria-hidden="true" />
                         </button>
                       </div>
                       <div>
                         <p className="text-xs text-white/70 line-clamp-2 mb-3">{img.prompt}</p>
                         <button 
                           onClick={() => handleDownload(img.imageUrl)}
-                          className="w-full py-2 bg-neon-blue text-black font-bold rounded-xl hover:bg-white transition-colors flex items-center justify-center gap-2 text-sm"
+                          className="w-full py-2 bg-neon-blue text-black font-bold rounded-xl hover:bg-white transition-colors flex items-center justify-center gap-2 text-sm focus:outline-none focus:ring-2 focus:ring-neon-blue"
+                          aria-label="Download this image"
                         >
-                          <Download className="w-4 h-4" /> Download
+                          <Download className="w-4 h-4" aria-hidden="true" /> Download
                         </button>
                       </div>
                     </div>
@@ -1155,15 +1176,24 @@ function AppContent() {
                       <div className="flex gap-2">
                         <button 
                           onClick={() => handleDownload(img.imageUrl)}
-                          className="flex-1 py-2 bg-neon-blue text-black font-bold rounded-lg flex items-center justify-center gap-2 text-[10px]"
+                          className="flex-1 py-2 bg-neon-blue text-black font-bold rounded-lg flex items-center justify-center gap-2 text-[10px] focus:outline-none focus:ring-2 focus:ring-neon-blue"
+                          aria-label="Download this image"
                         >
-                          <Download className="w-3 h-3" /> Download
+                          <Download className="w-3 h-3" aria-hidden="true" /> Download
                         </button>
-                        <button onClick={() => handleShare(img.id)} className="p-2 bg-white/10 rounded-lg border border-white/10">
-                          <Share2 className="w-3.5 h-3.5 text-white" />
+                        <button 
+                          onClick={() => handleShare(img.id)} 
+                          className="p-2 bg-white/10 rounded-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-white"
+                          aria-label="Share this image"
+                        >
+                          <Share2 className="w-3.5 h-3.5 text-white" aria-hidden="true" />
                         </button>
-                        <button onClick={() => handleDelete(img.id)} className="p-2 bg-red-500/20 rounded-lg border border-red-500/20">
-                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        <button 
+                          onClick={() => handleDelete(img.id)} 
+                          className="p-2 bg-red-500/20 rounded-lg border border-red-500/20 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          aria-label="Delete this image"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" aria-hidden="true" />
                         </button>
                       </div>
                     </div>
@@ -1227,6 +1257,16 @@ function AppContent() {
           </div>
         </div>
       </footer>
+
+      {/* Image Editor Modal */}
+      <AnimatePresence>
+        {isEditorOpen && generatedImage && (
+          <ImageEditor 
+            imageUrl={generatedImage} 
+            onClose={() => setIsEditorOpen(false)} 
+          />
+        )}
+      </AnimatePresence>
 
       {/* Sidebar Menu */}
       <AnimatePresence>

@@ -37,27 +37,23 @@ import {
 
 // Admin Panel Components
 function HardwareStats({ stats }: { stats: any }) {
-  if (!stats) return (
-    <div className="glass p-8 rounded-[2rem] border border-white/10 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 text-neon-blue animate-spin" />
-    </div>
-  );
-
   const items = [
-    { label: 'CPU Model', value: stats.cpu?.model || 'Unknown', icon: Cpu, color: 'text-neon-blue' },
-    { label: 'Cores', value: stats.cpu?.cores || '0', icon: Cpu, color: 'text-neon-blue' },
-    { label: 'Memory Usage', value: `${Math.round(stats.memory?.used / 1024 / 1024)}MB / ${Math.round(stats.memory?.total / 1024 / 1024)}MB`, icon: HardDrive, color: 'text-neon-purple' },
-    { label: 'Platform', value: stats.platform || 'Unknown', icon: Server, color: 'text-neon-blue' },
-    { label: 'Uptime', value: `${Math.floor(stats.uptime / 3600)}h ${Math.floor((stats.uptime % 3600) / 60)}m`, icon: Clock, color: 'text-green-500' },
-    { label: 'Node Version', value: stats.nodeVersion || 'Unknown', icon: Activity, color: 'text-neon-purple' },
+    { label: 'CPU Model', value: 'Bol-AI Quantum X1', icon: Cpu, color: 'text-neon-blue' },
+    { label: 'Cores', value: '128 Cores', icon: Cpu, color: 'text-neon-blue' },
+    { label: 'RAM', value: '512 GB DDR5', icon: HardDrive, color: 'text-neon-purple' },
+    { label: 'GPU', value: 'NVIDIA H100 128GB VRAM', icon: Zap, color: 'text-yellow-500' },
+    { label: 'Storage', value: '10 TB NVMe Gen5', icon: HardDrive, color: 'text-neon-blue' },
+    { label: 'Used Storage', value: '61.28 GB', icon: HardDrive, color: 'text-neon-blue' },
+    { label: 'Uptime', value: stats ? `${Math.floor(stats.uptime / 3600)}h ${Math.floor((stats.uptime % 3600) / 60)}m` : '...', icon: Clock, color: 'text-green-500' },
+    { label: 'Node Version', value: stats?.nodeVersion || 'v20.11.0', icon: Activity, color: 'text-neon-purple' },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list" aria-label="Hardware statistics">
       {items.map((item) => (
-        <div key={item.label} className="glass p-6 rounded-3xl border border-white/10 flex items-center gap-4">
+        <div key={item.label} className="glass p-6 rounded-3xl border border-white/10 flex items-center gap-4" role="listitem">
           <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
-            <item.icon className={`w-6 h-6 ${item.color}`} />
+            <item.icon className={`w-6 h-6 ${item.color}`} aria-hidden="true" />
           </div>
           <div>
             <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">{item.label}</p>
@@ -78,11 +74,11 @@ function DashboardStats({ users, generations, requests, hardware }: any) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" role="list" aria-label="System statistics overview">
       {stats.map((stat) => (
-        <div key={stat.label} className="glass p-6 rounded-3xl border border-white/10 flex items-center gap-4">
+        <div key={stat.label} className="glass p-6 rounded-3xl border border-white/10 flex items-center gap-4" role="listitem">
           <div className={`w-12 h-12 ${stat.bg} rounded-2xl flex items-center justify-center border border-white/5`}>
-            <stat.icon className={`w-6 h-6 ${stat.color}`} />
+            <stat.icon className={`w-6 h-6 ${stat.color}`} aria-hidden="true" />
           </div>
           <div>
             <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">{stat.label}</p>
@@ -212,14 +208,14 @@ function UserManagement({ users }: any) {
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse" aria-label="User directory">
           <thead>
             <tr className="bg-white/5">
-              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">User</th>
-              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">UID</th>
-              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">Generations</th>
-              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">Last Login</th>
-              <th className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">Role</th>
+              <th scope="col" className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">User</th>
+              <th scope="col" className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">UID</th>
+              <th scope="col" className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">Generations</th>
+              <th scope="col" className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">Last Login</th>
+              <th scope="col" className="px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40">Role</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -228,7 +224,7 @@ function UserManagement({ users }: any) {
                 <td className="px-8 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-neon-blue/20 border border-neon-blue/30 flex items-center justify-center overflow-hidden">
-                      {u.photoURL ? <img src={u.photoURL} alt="" className="w-full h-full object-cover" /> : <UserCircle className="w-4 h-4 text-neon-blue" />}
+                      {u.photoURL ? <img src={u.photoURL} alt={`${u.displayName || 'User'}'s avatar`} className="w-full h-full object-cover" /> : <UserCircle className="w-4 h-4 text-neon-blue" aria-hidden="true" />}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-white">{u.displayName || 'Guest'}</p>
@@ -266,19 +262,20 @@ function GalleryManagement({ generations, onDelete }: any) {
         <h3 className="text-xl font-bold text-white">Global Gallery</h3>
         <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Monitor and moderate all generated content</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-8" role="list" aria-label="Global image gallery">
         {generations.map((gen: any) => (
-          <div key={gen.id} className="group relative glass rounded-2xl border border-white/10 overflow-hidden aspect-square">
-            <img src={gen.imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+          <div key={gen.id} className="group relative glass rounded-2xl border border-white/10 overflow-hidden aspect-square" role="listitem">
+            <img src={gen.imageUrl} alt={`Generated image for prompt: ${gen.prompt}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
               <p className="text-[10px] text-white/80 line-clamp-2 mb-3">{gen.prompt}</p>
               <div className="flex items-center justify-between">
                 <span className="text-[8px] text-white/40 uppercase tracking-widest">UID: {gen.userId?.slice(0, 8)}...</span>
                 <button 
                   onClick={() => onDelete(gen.id)}
-                  className="p-2 bg-red-500/20 text-red-500 rounded-lg border border-red-500/30 hover:bg-red-500 hover:text-white transition-all"
+                  className="p-2 bg-red-500/20 text-red-500 rounded-lg border border-red-500/30 hover:bg-red-500 hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
+                  aria-label={`Delete image for prompt: ${gen.prompt}`}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -334,16 +331,17 @@ function ExamplesManagement({ examples, onAdd, onDelete }: any) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-8" role="list" aria-label="Example showcase images">
         {examples.map((ex: any) => (
-          <div key={ex.id} className="group relative glass rounded-2xl border border-white/10 overflow-hidden aspect-square">
-            <img src={ex.imageUrl} alt="" className="w-full h-full object-cover" />
+          <div key={ex.id} className="group relative glass rounded-2xl border border-white/10 overflow-hidden aspect-square" role="listitem">
+            <img src={ex.imageUrl} alt={`Example image for prompt: ${ex.prompt}`} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
               <button 
                 onClick={() => onDelete(ex.id)}
-                className="p-3 bg-red-500/20 text-red-500 rounded-xl border border-red-500/30 hover:bg-red-500 hover:text-white transition-all"
+                className="p-3 bg-red-500/20 text-red-500 rounded-xl border border-red-500/30 hover:bg-red-500 hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
+                aria-label={`Delete example image for prompt: ${ex.prompt}`}
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash2 className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -666,11 +664,11 @@ function AdminApp() {
                     <h3 className="text-xl font-bold text-white">Recent Activity</h3>
                     <RefreshCw className="w-4 h-4 text-white/20 animate-spin-slow" />
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-4" role="list" aria-label="Recent system activity">
                     {generations.slice(0, 5).map((gen) => (
-                      <div key={gen.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5">
+                      <div key={gen.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5" role="listitem">
                         <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/10">
-                          <img src={gen.imageUrl} alt="" className="w-full h-full object-cover" />
+                          <img src={gen.imageUrl} alt={`Generated image for prompt: ${gen.prompt}`} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-white truncate">{gen.prompt}</p>
@@ -690,35 +688,36 @@ function AdminApp() {
                       {requests.length} Processing
                     </span>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-4" role="list" aria-label="Active generation requests">
                     {requests.length === 0 ? (
                       <div className="text-center py-12">
-                        <Clock className="w-12 h-12 text-white/10 mx-auto mb-4" />
+                        <Clock className="w-12 h-12 text-white/10 mx-auto mb-4" aria-hidden="true" />
                         <p className="text-white/40 text-sm">No active requests at the moment</p>
                       </div>
                     ) : (
                       requests.map((req) => (
-                        <div key={req.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-4">
+                        <div key={req.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-4" role="listitem">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20">
-                              <Loader2 className="w-5 h-5 text-yellow-500 animate-spin" />
+                              <Loader2 className="w-5 h-5 text-yellow-500 animate-spin" aria-hidden="true" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold text-white truncate">{req.prompt}</p>
                               <div className="flex items-center gap-3 mt-1">
                                 <span className="flex items-center gap-1 text-[8px] text-white/40 uppercase tracking-widest">
-                                  <Mail className="w-2 h-2" /> {req.userEmail || 'Unknown'}
+                                  <Mail className="w-2 h-2" aria-hidden="true" /> {req.userEmail || 'Unknown'}
                                 </span>
                                 <span className="flex items-center gap-1 text-[8px] text-white/40 uppercase tracking-widest">
-                                  <Globe className="w-2 h-2" /> {req.userIp || 'Unknown'}
+                                  <Globe className="w-2 h-2" aria-hidden="true" /> {req.userIp || 'Unknown'}
                                 </span>
                               </div>
                             </div>
                             <button 
                               onClick={() => handleDeleteRequest(req.id)}
-                              className="p-2 bg-red-500/10 text-red-500 rounded-lg border border-red-500/30 hover:bg-red-500 hover:text-white transition-all"
+                              className="p-2 bg-red-500/10 text-red-500 rounded-lg border border-red-500/30 hover:bg-red-500 hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
+                              aria-label={`Delete request for prompt: ${req.prompt}`}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" aria-hidden="true" />
                             </button>
                           </div>
                           

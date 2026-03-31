@@ -24,6 +24,7 @@
     "node-fetch": "^2.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-easy-crop": "^5.5.7",
     "vite": "^6.2.0"
   },
   "devDependencies": {
