@@ -14,11 +14,18 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize App Check
-export const appCheck = initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider('6Lc1sZwsAAAAAOIHBQaiVrl-NTL6wM9aIEK1jds3'),
-  isTokenAutoRefreshEnabled: true
-});
+// Initialize App Check only in browser
+export let appCheck: any = null;
+if (typeof window !== 'undefined') {
+  try {
+    appCheck = initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider('6Lc1sZwsAAAAAOIHBQaiVrl-NTL6wM9aIEK1jds3'),
+      isTokenAutoRefreshEnabled: true
+    });
+  } catch (e) {
+    console.warn("App Check failed to initialize:", e);
+  }
+}
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();

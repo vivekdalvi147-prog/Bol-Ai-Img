@@ -25,8 +25,18 @@ import fs from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import admin from "firebase-admin";
+
 // Load Firebase Config
 const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
+
+// Initialize Firebase Admin
+admin.initializeApp({
+  projectId: firebaseConfig.projectId
+});
+const adminDb = admin.firestore();
+
+// Initialize Firebase Client (for other purposes if needed, but we'll use Admin for DB)
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 
@@ -75,10 +85,13 @@ async function processRequest(requestId: string, requestData: any) {
   console.log(`[Worker] Processing request ${requestId} for user ${requestData.userEmail || 'anonymous'}`);
   
   const startTime = Date.now();
-  const TIMEOUT_MS = 180000; // 3 minutes
+  const TIMEOUT_MS = 360000; // 6 minutes
   
   try {
-    const { prompt, size, imageUrl: refImageUrl, userId, userEmail, isEnhanced, enhancedPrompt: existingEnhancedPrompt } = requestData;
+    // Set status to processing immediately
+    await adminDb.collection('requests').doc(requestId).update({ status: 'processing' });
+
+    const { prompt, size, referenceImageUrl: refImageUrl, userId, userEmail, isEnhanced, enhancedPrompt: existingEnhancedPrompt } = requestData;
     let finalPrompt = existingEnhancedPrompt || prompt;
 
     // 0. Enhance Prompt if requested but not yet enhanced
@@ -110,7 +123,7 @@ async function processRequest(requestId: string, requestData: any) {
           finalPrompt = response.text;
           
           // Update request with enhanced prompt
-          await updateDoc(doc(db, 'requests', requestId), {
+          await adminDb.collection('requests').doc(requestId).update({
             enhancedPrompt: finalPrompt
           });
         }
@@ -201,12 +214,12 @@ async function processRequest(requestId: string, requestData: any) {
     }
 
     if (!isComplete) {
-      throw new Error("Generation Timeout (3m)");
+      throw new Error("Generation Timeout (6m)");
     }
 
   } catch (error: any) {
     console.error(`[Worker] Error processing ${requestId}:`, error.message);
-    await updateDoc(doc(db, 'requests', requestId), {
+    await adminDb.collection('requests').doc(requestId).update({
       status: 'error',
       error: error.message,
       durationMs: Date.now() - startTime
@@ -245,7 +258,7 @@ async function finalizeRequest(requestId: string, requestData: any, rawUrl: stri
 
   // 2. Update Request
   const durationMs = Date.now() - startTime;
-  await updateDoc(doc(db, 'requests', requestId), {
+  await adminDb.collection('requests').doc(requestId).update({
     status: 'completed',
     imageUrl: finalUrl,
     durationMs
@@ -257,24 +270,28 @@ async function finalizeRequest(requestId: string, requestData: any, rawUrl: stri
     prompt: requestData.isEnhanced ? requestData.enhancedPrompt : requestData.prompt,
     imageUrl: finalUrl,
     size: requestData.size || "1024*1024",
-    createdAt: serverTimestamp(),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     isEnhanced: requestData.isEnhanced || false,
     originalPrompt: requestData.prompt
   };
-  await addDoc(collection(db, 'generations'), genData);
+  await adminDb.collection('generations').add(genData);
 
   // 4. Update User Count
   if (requestData.userId && requestData.userId !== 'anonymous') {
-    const userRef = doc(db, 'users', requestData.userId);
-    const today = new Date().toISOString().split('T')[0];
-    const userDoc = await getDoc(userRef);
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      if (userData.lastGenerationDate !== today) {
-        await updateDoc(userRef, { generationsCount: 1, lastGenerationDate: today });
-      } else {
-        await updateDoc(userRef, { generationsCount: increment(1) });
+    try {
+      const userRef = adminDb.collection('users').doc(requestData.userId);
+      const today = new Date().toISOString().split('T')[0];
+      const userDoc = await userRef.get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        if (userData?.lastGenerationDate !== today) {
+          await userRef.update({ generationsCount: 1, lastGenerationDate: today });
+        } else {
+          await userRef.update({ generationsCount: admin.firestore.FieldValue.increment(1) });
+        }
       }
+    } catch (e) {
+      console.warn("[Worker] Failed to update user stats:", e);
     }
   }
   
@@ -282,9 +299,20 @@ async function finalizeRequest(requestId: string, requestData: any, rawUrl: stri
 }
 
 // Start listening for requests
-onSnapshot(query(collection(db, 'requests'), where('status', '==', 'active')), (snap) => {
+const processingRequests = new Set<string>();
+
+adminDb.collection('requests').where('status', '==', 'active').onSnapshot(snap => {
+  if (!snap.empty) {
+    console.log(`[Server] Detected ${snap.size} active requests`);
+  }
   snap.docs.forEach(d => {
-    processRequest(d.id, d.data());
+    const requestId = d.id;
+    if (!processingRequests.has(requestId)) {
+      processingRequests.add(requestId);
+      processRequest(requestId, d.data()).finally(() => {
+        processingRequests.delete(requestId);
+      });
+    }
   });
 }, (error) => {
   console.error("[Server] Firestore Listener Error:", error);
@@ -297,25 +325,31 @@ app.get("/api/health", (req, res) => {
 // API Route for Hardware Stats
 app.get("/api/hardware", async (req, res) => {
   try {
-    const totalMem = os.totalmem();
-    const freeMem = os.freemem();
-    const usedMem = totalMem - freeMem;
+    const totalMem = 512 * 1024 * 1024 * 1024; // 512 GB
+    const usedMem = 4.2 * 1024 * 1024 * 1024; // 4.2 GB
+    const freeMem = totalMem - usedMem;
+    const memPercent = ((usedMem / totalMem) * 100).toFixed(2);
     
-    // Mocking storage stats as requested (10TB total, 61.28GB used)
-    // In a real environment, we'd use fs.statfsSync('/')
     const totalStorage = 10 * 1024 * 1024 * 1024 * 1024; // 10 TB
     const usedStorage = 61.28 * 1024 * 1024 * 1024; // 61.28 GB
     const freeStorage = totalStorage - usedStorage;
+    const storagePercent = ((usedStorage / totalStorage) * 100).toFixed(2);
 
-    // Get Firestore counts for "Firebase Storage" (Database Usage)
-    // We'll just count generations as a proxy for database size
-    const generationsSnap = await getDoc(doc(db, 'settings', 'stats')); // Using a stats doc if it exists
+    // Get Firestore counts
     let dbDocsCount = 0;
+    let estimatedSizeMB = "0.00";
+    let firebaseStatus = "Healthy";
+    let firebasePercent = "0.00";
+
     try {
-      // In a real app, we'd use a counter. For now, we'll just return a realistic number
-      // or try to fetch a count if we have one.
-      dbDocsCount = 12450; // Mocked count for "Firebase Storage" usage
-    } catch (e) {}
+      // Mocked count for "Firebase Storage" usage
+      dbDocsCount = 12450 + Math.floor(Math.random() * 10); 
+      estimatedSizeMB = (dbDocsCount * 0.12).toFixed(2);
+      firebasePercent = ((dbDocsCount / 50000) * 100).toFixed(2);
+    } catch (e) {
+      console.error("[Server] Firebase Stats Mock Error:", e);
+      firebaseStatus = "Degraded";
+    }
 
     const stats = {
       cpu: {
@@ -324,26 +358,27 @@ app.get("/api/hardware", async (req, res) => {
         load: os.loadavg(),
       },
       memory: {
-        total: 512 * 1024 * 1024 * 1024, // 512 GB
-        free: (512 - 4.2) * 1024 * 1024 * 1024,
-        used: 4.2 * 1024 * 1024 * 1024,
+        total: totalMem,
+        free: freeMem,
+        used: usedMem,
         totalGB: "512.00",
-        usedGB: "4.20",
-        freeGB: "507.80",
-        percent: "0.82"
+        usedGB: (usedMem / (1024**3)).toFixed(2),
+        freeGB: (freeMem / (1024**3)).toFixed(2),
+        percent: memPercent
       },
       storage: {
-        total: 10 * 1024 * 1024 * 1024 * 1024, // 10 TB
-        used: 61.28 * 1024 * 1024 * 1024, // 61.28 GB
-        free: (10 * 1024 - 61.28) * 1024 * 1024 * 1024,
+        total: totalStorage,
+        used: usedStorage,
+        free: freeStorage,
         totalTB: "10",
-        usedGB: "61.28",
-        percent: "0.61"
+        usedGB: (usedStorage / (1024**3)).toFixed(2),
+        percent: storagePercent
       },
       firebase: {
         docsCount: dbDocsCount,
-        estimatedSizeMB: (dbDocsCount * 0.001).toFixed(2), // Rough estimate: 1KB per doc
-        status: "Healthy"
+        estimatedSizeMB: estimatedSizeMB,
+        status: firebaseStatus,
+        percent: firebasePercent
       },
       uptime: os.uptime(),
       platform: os.platform(),

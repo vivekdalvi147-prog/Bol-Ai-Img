@@ -71,8 +71,8 @@ service cloud.firestore {
              isValidString('prompt', 1, 5000) &&
              isValidOptionalString('enhancedPrompt', 0, 10000) &&
              isValidOptionalString('referenceImageUrl', 0, 2000) &&
-             data.status in ['active', 'completed', 'error'] &&
-             isRecent(data.createdAt) &&
+             data.status in ['active', 'processing', 'completed', 'error'] &&
+             (request.method == 'create' ? isRecent(data.createdAt) : data.createdAt == resource.data.createdAt) &&
              isValidOptionalString('imageUrl', 0, 2000) &&
              isValidOptionalString('error', 0, 1000) &&
              isValidNumber('durationMs', 0, 3600000) &&
@@ -88,7 +88,7 @@ service cloud.firestore {
              isValidString('imageUrl', 1, 2000) &&
              isValidOptionalString('referenceImageUrl', 0, 2000) &&
              isValidOptionalString('size', 0, 50) &&
-             isRecent(data.createdAt) &&
+             (request.method == 'create' ? isRecent(data.createdAt) : data.createdAt == resource.data.createdAt) &&
              (!('isEnhanced' in data) || data.isEnhanced is bool) &&
              isValidOptionalString('originalPrompt', 0, 5000);
     }
@@ -125,7 +125,11 @@ service cloud.firestore {
                     resource.data.status == 'active';
       
       allow update: if isValidRequest(request.resource.data) && 
-                      (isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId) || resource.data.userId == 'anonymous');
+                      (isAdmin() || 
+                       (isAuthenticated() && request.auth.uid == resource.data.userId) || 
+                       resource.data.userId == 'anonymous' ||
+                       resource.data.status == 'active' ||
+                       resource.data.status == 'processing');
       
       allow delete: if isAdmin();
     }

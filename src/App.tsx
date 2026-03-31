@@ -486,11 +486,11 @@ function AppContent() {
       currentRequestId = reqRef.id;
 
       // Step 2: Listen for completion
-      return new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           unsub();
-          reject(new Error("Generation Timeout (3m). The server is taking too long."));
-        }, 180000); // 3 minutes
+          reject(new Error("Generation Timeout (6m). The server is taking too long."));
+        }, 360000); // 6 minutes
 
         const unsub = onSnapshot(doc(db, 'requests', currentRequestId!), (docSnap) => {
           if (!docSnap.exists()) return;
@@ -518,6 +518,11 @@ function AppContent() {
             unsub();
             reject(new Error(data.error || "Generation failed on server."));
           }
+        }, (error) => {
+          clearTimeout(timeout);
+          unsub();
+          console.error("Request Snapshot Error:", error);
+          reject(new Error("Database connection lost or permission denied. Please try again."));
         });
       });
 
@@ -992,10 +997,17 @@ function AppContent() {
                   ) : error ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
                       <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
-                        <Info className="text-red-500 w-8 h-8" />
+                        <AlertTriangle className="text-red-500 w-8 h-8" />
                       </div>
-                      <p className="text-red-400 font-medium">{error}</p>
-                      <button onClick={handleGenerate} className="text-sm text-white/40 hover:text-white underline">Try Again</button>
+                      <p className="text-red-400 font-medium max-w-xs">
+                        {error.includes('{"error":') 
+                          ? "A database error occurred. Please try again." 
+                          : error}
+                      </p>
+                      <div className="flex gap-3">
+                        <button onClick={handleGenerate} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm text-white transition-all">Try Again</button>
+                        <button onClick={() => setError(null)} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm text-white/60 transition-all">Dismiss</button>
+                      </div>
                     </div>
                   ) : (
                     <>

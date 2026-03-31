@@ -3,8 +3,30 @@ import { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, limit, getDocs, deleteDoc, addDoc, serverTimestamp, where, getDocFromServer } from 'firebase/firestore';
+import { 
+  onAuthStateChanged, 
+  signOut, 
+  signInWithEmailAndPassword,
+  signInWithPopup
+} from 'firebase/auth';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  onSnapshot, 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  getDocs, 
+  deleteDoc, 
+  addDoc, 
+  serverTimestamp, 
+  where, 
+  getDocFromServer,
+  updateDoc
+} from 'firebase/firestore';
+import { googleProvider } from './lib/firebase';
 import './index.css';
 import { 
   Settings as SettingsIcon, 
@@ -38,15 +60,36 @@ import {
 // Admin Panel Components
 function HardwareStats({ stats }: { stats: any }) {
   const items = [
-    { label: 'CPU Model', value: stats?.cpu?.model || 'Bol-AI Quantum X1', icon: Cpu, color: 'text-neon-blue' },
+    { label: 'CPU Model', value: stats?.cpu?.model || 'Bol-AI Quantum X1', icon: Cpu, color: 'text-neon-blue', percent: 45 },
     { label: 'Cores', value: stats?.cpu?.cores ? `${stats.cpu.cores} Cores` : '128 Cores', icon: Cpu, color: 'text-neon-blue' },
     { label: 'RAM Capacity', value: '512 GB DDR5', icon: HardDrive, color: 'text-neon-purple' },
-    { label: 'RAM Usage', value: stats?.memory?.usedGB ? `${stats.memory.usedGB} GB / ${stats.memory.totalGB} GB (${stats.memory.percent}%)` : '...', icon: Activity, color: 'text-neon-blue' },
+    { 
+      label: 'RAM Usage', 
+      value: stats?.memory?.usedGB ? `${stats.memory.usedGB} GB / ${stats.memory.totalGB} GB` : '...', 
+      icon: Activity, 
+      color: 'text-neon-blue',
+      percent: stats?.memory?.percent || 0,
+      showBar: true
+    },
     { label: 'GPU Cluster', value: 'NVIDIA H100 128GB VRAM (x8)', icon: Zap, color: 'text-yellow-500' },
     { label: 'Storage Capacity', value: '10 TB NVMe Gen5', icon: HardDrive, color: 'text-neon-blue' },
-    { label: 'Storage Usage', value: stats?.storage?.usedGB ? `${stats.storage.usedGB} GB / 10,000 GB` : '61.28 GB', icon: HardDrive, color: 'text-neon-blue' },
-    { label: 'Firebase Database', value: stats?.firebase?.docsCount ? `${stats.firebase.docsCount.toLocaleString()} Documents` : '...', icon: Server, color: 'text-neon-purple' },
-    { label: 'Firebase Storage', value: stats?.firebase?.estimatedSizeMB ? `${stats.firebase.estimatedSizeMB} MB Used` : '...', icon: Globe, color: 'text-neon-blue' },
+    { 
+      label: 'Storage Usage', 
+      value: stats?.storage?.usedGB ? `${stats.storage.usedGB} GB / 10,000 GB` : '61.28 GB', 
+      icon: HardDrive, 
+      color: 'text-neon-blue',
+      percent: stats?.storage?.percent || 0,
+      showBar: true
+    },
+    { 
+      label: 'Firebase Database', 
+      value: stats?.firebase?.docsCount !== undefined ? `${stats.firebase.docsCount.toLocaleString()} Documents` : '...', 
+      icon: Server, 
+      color: 'text-neon-purple',
+      percent: parseFloat(stats?.firebase?.percent) || 0,
+      showBar: true
+    },
+    { label: 'Firebase Storage', value: stats?.firebase?.estimatedSizeMB !== undefined ? `${stats.firebase.estimatedSizeMB} MB Used` : '...', icon: Globe, color: 'text-neon-blue' },
     { label: 'System Uptime', value: stats ? `${Math.floor(stats.uptime / 3600)}h ${Math.floor((stats.uptime % 3600) / 60)}m` : '...', icon: Clock, color: 'text-green-500' },
     { label: 'Node Runtime', value: stats?.nodeVersion || 'v20.11.0', icon: Activity, color: 'text-neon-purple' },
     { label: 'Database Status', value: stats?.firebase?.status || 'Healthy', icon: ShieldCheck, color: 'text-green-500' },
@@ -55,14 +98,33 @@ function HardwareStats({ stats }: { stats: any }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list" aria-label="Hardware statistics">
       {items.map((item) => (
-        <div key={item.label} className="glass p-6 rounded-3xl border border-white/10 flex items-center gap-4" role="listitem">
-          <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
-            <item.icon className={`w-6 h-6 ${item.color}`} aria-hidden="true" />
+        <div key={item.label} className="glass p-6 rounded-3xl border border-white/10 flex flex-col gap-4" role="listitem">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
+              <item.icon className={`w-6 h-6 ${item.color}`} aria-hidden="true" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">{item.label}</p>
+              <p className="text-sm font-bold text-white truncate">{item.value}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">{item.label}</p>
-            <p className="text-sm font-bold text-white truncate max-w-[200px]">{item.value}</p>
-          </div>
+          
+          {item.showBar && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                <span className="text-white/40">Utilization</span>
+                <span className={item.color}>{item.percent}%</span>
+              </div>
+              <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${item.percent}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className={`h-full bg-gradient-to-r ${item.color.includes('blue') ? 'from-neon-blue to-neon-purple' : 'from-neon-purple to-pink-500'}`}
+                />
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -74,20 +136,42 @@ function DashboardStats({ users, generations, requests, hardware }: any) {
     { label: 'Total Users', value: users.length, icon: Users, color: 'text-neon-blue', bg: 'bg-neon-blue/10' },
     { label: 'Total Generations', value: generations.length, icon: ImageIcon, color: 'text-neon-purple', bg: 'bg-neon-purple/10' },
     { label: 'Active Requests', value: requests.length, icon: Activity, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-    { label: 'RAM Usage', value: hardware ? `${hardware.memory?.usedGB} GB / ${hardware.memory?.totalGB} GB` : '...', icon: HardDrive, color: 'text-neon-blue', bg: 'bg-neon-blue/10' },
+    { 
+      label: 'RAM Usage', 
+      value: hardware ? `${hardware.memory?.usedGB} GB / ${hardware.memory?.totalGB} GB` : '...', 
+      icon: HardDrive, 
+      color: 'text-neon-blue', 
+      bg: 'bg-neon-blue/10',
+      percent: hardware?.memory?.percent || 0,
+      showBar: true
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" role="list" aria-label="System statistics overview">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12" role="list" aria-label="System statistics overview">
       {stats.map((stat) => (
-        <div key={stat.label} className="glass p-6 rounded-3xl border border-white/10 flex items-center gap-4" role="listitem">
-          <div className={`w-12 h-12 ${stat.bg} rounded-2xl flex items-center justify-center border border-white/5`}>
-            <stat.icon className={`w-6 h-6 ${stat.color}`} aria-hidden="true" />
+        <div key={stat.label} className="glass p-6 rounded-3xl border border-white/10 flex flex-col gap-4" role="listitem">
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 ${stat.bg} rounded-2xl flex items-center justify-center border border-white/5`}>
+              <stat.icon className={`w-6 h-6 ${stat.color}`} aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">{stat.label}</p>
+              <p className="text-2xl font-display font-bold text-white">{stat.value}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">{stat.label}</p>
-            <p className="text-2xl font-display font-bold text-white">{stat.value}</p>
-          </div>
+          
+          {stat.showBar && (
+            <div className="space-y-1">
+              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${stat.percent}%` }}
+                  className="h-full bg-neon-blue shadow-[0_0_10px_rgba(0,255,255,0.5)]"
+                />
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -184,7 +268,7 @@ function SystemSettings({ maintenanceMode, isEnhanceGlobal, isTxtToImgGlobal, is
   );
 }
 
-function UserManagement({ users }: any) {
+function UserManagement({ users, onPromote }: any) {
   const [searchTerm, setSearchTerm] = useState('');
   
   const filteredUsers = users.filter((u: any) => 
@@ -246,9 +330,20 @@ function UserManagement({ users }: any) {
                   {u.lastLogin?.toDate ? u.lastLogin.toDate().toLocaleString() : 'Never'}
                 </td>
                 <td className="px-8 py-4">
-                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest ${u.role === 'admin' ? 'bg-neon-purple/20 text-neon-purple border border-neon-purple/30' : 'bg-white/5 text-white/40 border border-white/10'}`}>
-                    {u.role || 'user'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest ${u.role === 'admin' ? 'bg-neon-purple/20 text-neon-purple border border-neon-purple/30' : 'bg-white/5 text-white/40 border border-white/10'}`}>
+                      {u.role || 'user'}
+                    </span>
+                    {u.role !== 'admin' && (
+                      <button 
+                        onClick={() => onPromote(u.uid)}
+                        className="p-1.5 bg-neon-purple/10 text-neon-purple rounded-lg border border-neon-purple/20 hover:bg-neon-purple hover:text-white transition-all"
+                        title="Promote to Admin"
+                      >
+                        <ShieldCheck className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -395,8 +490,15 @@ class AdminErrorBoundary extends React.Component<any, any> {
 
 function AdminApp() {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Login State
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   
   // Settings State
   const [maintenanceMode, setMaintenanceMode] = useState(0);
@@ -430,11 +532,12 @@ function AdminApp() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         const userData = userDoc.data();
-        const isAdminUser = userData?.role === 'admin' || user.email === 'vivekdalvi147@gmail.com' || user.uid === '2cwK3E4SSvezZRop3VE14lbfJdc2';
+        const isAdminUser = userData?.role === 'admin' || currentUser.email === 'vivekdalvi147@gmail.com' || currentUser.uid === '2cwK3E4SSvezZRop3VE14lbfJdc2';
         setIsAdmin(isAdminUser);
       } else {
         setIsAdmin(false);
@@ -444,6 +547,42 @@ function AdminApp() {
 
     return () => unsubscribe();
   }, []);
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    setIsLoggingIn(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      setLoginError(error.message || "Failed to login. Check your credentials.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoginError(null);
+    setIsLoggingIn(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+      setLoginError(error.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handlePromoteToAdmin = async (userId: string) => {
+    if (!confirm("Promote this user to Admin?")) return;
+    try {
+      await updateDoc(doc(db, 'users', userId), { role: 'admin' });
+      setShowToast("User promoted to Admin.");
+    } catch (e) {
+      setShowToast("Failed to promote user.");
+    }
+  };
 
   useEffect(() => {
     const testConnection = async () => {
@@ -579,7 +718,7 @@ function AdminApp() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center min-w-[1280px]">
         <Loader2 className="w-8 h-8 text-neon-blue animate-spin" />
       </div>
     );
@@ -587,26 +726,97 @@ function AdminApp() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
-        <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center border border-red-500/20 mb-8">
-          <ShieldAlert className="w-10 h-10 text-red-500" />
-        </div>
-        <h1 className="text-3xl font-display font-bold text-white mb-4 text-center">Access Restricted</h1>
-        <p className="text-white/40 text-center max-w-md mb-8">
-          This sector is reserved for system administrators. Unauthorized access attempts are logged.
-        </p>
-        <button 
-          onClick={() => window.location.href = '/'}
-          className="px-8 py-3 bg-white/5 border border-white/10 rounded-2xl text-white font-bold hover:bg-white/10 transition-all"
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 min-w-[1280px]">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md glass p-8 rounded-[2.5rem] border border-white/10 relative overflow-hidden"
         >
-          Return to Base
-        </button>
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neon-blue via-neon-purple to-neon-blue animate-shimmer" />
+          
+          <div className="flex flex-col items-center text-center mb-8">
+            <div className="w-20 h-20 bg-neon-blue/10 rounded-3xl flex items-center justify-center border border-neon-blue/20 mb-6 shadow-[0_0_30px_rgba(0,255,255,0.1)]">
+              <ShieldAlert className="w-10 h-10 text-neon-blue" />
+            </div>
+            <h1 className="text-3xl font-display font-bold text-white mb-2">Admin Terminal</h1>
+            <p className="text-white/40 text-sm">Secure access required for system governance.</p>
+          </div>
+
+          <form onSubmit={handleEmailLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest font-bold text-white/40 ml-2">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                <input 
+                  type="email" 
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@bol-ai.com"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-neon-blue transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest font-bold text-white/40 ml-2">Access Key</label>
+              <div className="relative">
+                <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                <input 
+                  type="password" 
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-neon-blue transition-all"
+                />
+              </div>
+            </div>
+
+            {loginError && (
+              <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-500 leading-relaxed">{loginError}</p>
+              </div>
+            )}
+
+            <button 
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full py-4 bg-neon-blue text-black font-bold rounded-2xl hover:bg-white transition-all shadow-[0_0_20px_rgba(0,255,255,0.2)] flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isLoggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+              {isLoggingIn ? 'Authenticating...' : 'Initialize Session'}
+            </button>
+          </form>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+            <div className="relative flex justify-center text-[10px] uppercase tracking-widest"><span className="bg-[#0a0a0a] px-4 text-white/20">Alternative</span></div>
+          </div>
+
+          <button 
+            onClick={handleGoogleLogin}
+            disabled={isLoggingIn}
+            className="w-full py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+          >
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+            Sign in with Google
+          </button>
+
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="w-full mt-6 text-[10px] uppercase tracking-widest font-bold text-white/20 hover:text-white transition-colors"
+          >
+            Return to Public Interface
+          </button>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-neon-blue/30">
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-neon-blue/30 min-w-[1280px]">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -810,7 +1020,7 @@ function AdminApp() {
                   <p className="text-neon-blue font-bold tracking-widest uppercase text-[10px] mt-1">Governance & Access Control</p>
                 </div>
               </div>
-              <UserManagement users={users} />
+              <UserManagement users={users} onPromote={handlePromoteToAdmin} />
             </motion.div>
           )}
 
