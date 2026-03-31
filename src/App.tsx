@@ -51,8 +51,9 @@ export default function App() {
   const [myImages, setMyImages] = useState<any[]>([]);
   const [sharedImage, setSharedImage] = useState<any>(null);
   const [maintenanceMode, setMaintenanceMode] = useState(0); // 0: Off, 1: Full, 2: Soft
+  const [isBolAiEnhanceGlobalEnabled, setIsBolAiEnhanceGlobalEnabled] = useState(true);
   const [userIp, setUserIp] = useState<string>('unknown');
-  const [activePage, setActivePage] = useState<'home' | 'about' | 'privacy' | 'contact'>('home');
+  const [activePage, setActivePage] = useState<'home' | 'about' | 'privacy' | 'contact' | 'admin'>('home');
   const [exampleImages, setExampleImages] = useState<string[]>(EXAMPLE_IMAGES);
   const [generationsCount, setGenerationsCount] = useState(() => {
     const saved = localStorage.getItem('bol_ai_generations');
@@ -62,7 +63,11 @@ export default function App() {
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
       if (docSnap.exists()) {
-        setMaintenanceMode(docSnap.data().maintenanceMode || 0);
+        const data = docSnap.data();
+        setMaintenanceMode(data.maintenanceMode || 0);
+        if (data.isBolAiEnhanceGlobalEnabled !== undefined) {
+          setIsBolAiEnhanceGlobalEnabled(data.isBolAiEnhanceGlobalEnabled);
+        }
       }
     }, (error) => {
       console.error("Error fetching settings:", error);
@@ -285,14 +290,14 @@ export default function App() {
         userEmail: user ? (user.email || user.providerData?.find(p => p.email)?.email || 'N/A') : 'anonymous',
         userIp: userIp,
         prompt: originalUserPrompt,
-        enhancedPrompt: isEnhanceEnabled ? null : originalUserPrompt, // Will be updated if enhanced
+        enhancedPrompt: (isEnhanceEnabled && isBolAiEnhanceGlobalEnabled) ? null : originalUserPrompt, // Will be updated if enhanced
         status: 'active',
         createdAt: serverTimestamp()
       });
       currentRequestId = reqRef.id;
       console.log("Request tracked with ID:", currentRequestId);
 
-      if (isEnhanceEnabled) {
+      if (isEnhanceEnabled && isBolAiEnhanceGlobalEnabled) {
         console.log("Enhancing prompt...");
         setIsEnhancing(true);
         try {
@@ -607,35 +612,67 @@ export default function App() {
             </div>
 
             {/* Enhance Toggle */}
-            <div className="flex justify-center">
-              <button 
-                onClick={() => setIsEnhanceEnabled(!isEnhanceEnabled)} 
-                className={`flex items-center justify-between w-full px-6 py-3.5 rounded-[1.5rem] border transition-all duration-500 group ${
-                  isEnhanceEnabled 
-                    ? 'bg-neon-purple/5 border-neon-purple/30 shadow-[0_10px_30px_rgba(176,38,255,0.15)]' 
-                    : 'bg-black/40 border-white/5 hover:bg-white/5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl transition-colors duration-300 ${isEnhanceEnabled ? 'bg-neon-purple/20' : 'bg-white/5'}`}>
-                    <Wand2 className={`w-4 h-4 ${isEnhanceEnabled ? 'text-neon-purple animate-pulse' : 'text-white/40'}`} />
+            {isBolAiEnhanceGlobalEnabled && (
+              <div className="flex justify-center">
+                <button 
+                  onClick={() => setIsEnhanceEnabled(!isEnhanceEnabled)} 
+                  className={`flex items-center justify-between w-full px-6 py-3.5 rounded-[1.5rem] border transition-all duration-500 group ${
+                    isEnhanceEnabled 
+                      ? 'bg-neon-purple/5 border-neon-purple/30 shadow-[0_10px_30px_rgba(176,38,255,0.15)]' 
+                      : 'bg-black/40 border-white/5 hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl transition-colors duration-300 ${isEnhanceEnabled ? 'bg-neon-purple/20' : 'bg-white/5'}`}>
+                      <Wand2 className={`w-4 h-4 ${isEnhanceEnabled ? 'text-neon-purple animate-pulse' : 'text-white/40'}`} />
+                    </div>
+                    <span className={`text-sm font-bold tracking-wider ${isEnhanceEnabled ? 'text-neon-purple' : 'text-white/40'}`}>
+                      Bol-AI Enhance
+                    </span>
+                    <div className="relative ml-2">
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveTooltip(activeTooltip === 'enhance' ? null : 'enhance');
+                        }}
+                        className={`p-1.5 rounded-full transition-all duration-300 ${activeTooltip === 'enhance' ? 'bg-neon-purple/20 text-neon-purple' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'}`}
+                        title="What is Bol-AI Enhance?"
+                      >
+                        <Info className="w-4 h-4" />
+                      </div>
+                      <AnimatePresence>
+                        {activeTooltip === 'enhance' && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 p-4 bg-black/95 border border-white/10 rounded-2xl text-xs text-white/70 leading-relaxed z-[100] backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-t-neon-purple/30"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-neon-purple animate-pulse" />
+                              <p className="font-bold text-neon-purple uppercase tracking-widest text-[10px]">Bol-AI Enhance</p>
+                            </div>
+                            <p className="mb-2">Automatically translates and expands your basic ideas into hyper-detailed, professional image generation prompts.</p>
+                            <p className="text-[10px] italic text-white/40">Best for: Getting stunning results from simple descriptions.</p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
-                  <span className={`text-sm font-bold tracking-wider ${isEnhanceEnabled ? 'text-neon-purple' : 'text-white/40'}`}>
-                    Bol-AI Enhance
-                  </span>
-                </div>
-                <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-500 relative ${isEnhanceEnabled ? 'bg-neon-purple' : 'bg-white/10'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-all duration-500 shadow-[0_0_10px_rgba(255,255,255,0.5)] ${isEnhanceEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                </div>
-              </button>
-            </div>
+                  <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-500 relative ${isEnhanceEnabled ? 'bg-neon-purple' : 'bg-white/10'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white transition-all duration-500 shadow-[0_0_10px_rgba(255,255,255,0.5)] ${isEnhanceEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
 
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, rotateX: 10 }}
             animate={{ opacity: 1, scale: 1, rotateX: 0, y: [0, -5, 0] }}
             transition={{ y: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}
-            className="glass rounded-[2.5rem] p-4 flex flex-col gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden border border-white/10 group hover:border-neon-blue/30 transition-all duration-500"
+            className="glass rounded-[2.5rem] p-4 flex flex-col gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative border border-white/10 group hover:border-neon-blue/30 transition-all duration-500"
             style={{ transformStyle: 'preserve-3d', perspective: '1000px' }}
           >
             {isEnhancing && (
@@ -700,7 +737,8 @@ export default function App() {
                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 p-4 bg-black/95 border border-white/10 rounded-2xl text-xs text-white/70 leading-relaxed z-50 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-t-neon-blue/30"
+                            className="absolute bottom-full right-0 md:left-1/2 md:-translate-x-1/2 mb-4 w-64 p-4 bg-black/95 border border-white/10 rounded-2xl text-xs text-white/70 leading-relaxed z-[100] backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-t-neon-blue/30"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <div className="flex items-center gap-2 mb-2">
                               <div className="w-1.5 h-1.5 rounded-full bg-neon-blue animate-pulse" />
@@ -1041,26 +1079,64 @@ export default function App() {
               </div>
             </div>
           </section>
+        ) : activePage === 'admin' ? (
+          <section className="container mx-auto px-6 py-20 max-w-4xl text-center">
+            <h2 className="text-4xl font-display font-bold mb-8 text-white">Admin Control Panel</h2>
+            <div className="glass p-8 rounded-3xl border border-white/10 space-y-6 text-left">
+              {user?.email === 'vivekdalvi147@gmail.com' ? (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between p-6 bg-white/5 rounded-2xl border border-white/10">
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-2">Bol-AI Enhance Feature</h3>
+                      <p className="text-sm text-white/60">Enable or disable the Bol-AI Enhance feature globally for all users.</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await setDoc(doc(db, 'settings', 'general'), {
+                            isBolAiEnhanceGlobalEnabled: !isBolAiEnhanceGlobalEnabled
+                          }, { merge: true });
+                        } catch (error) {
+                          console.error("Error updating settings:", error);
+                        }
+                      }}
+                      className={`px-6 py-3 rounded-xl font-bold transition-all ${isBolAiEnhanceGlobalEnabled ? 'bg-neon-blue text-black' : 'bg-red-500/20 text-red-500 border border-red-500/50'}`}
+                    >
+                      {isBolAiEnhanceGlobalEnabled ? 'Enabled' : 'Disabled'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-red-500 font-bold text-xl">Access Denied</p>
+                  <p className="text-white/60 mt-2">You do not have permission to view this page.</p>
+                </div>
+              )}
+            </div>
+          </section>
         ) : null}
       </main>
 
-      <footer className="border-t border-white/10 py-12 mt-32 bg-black/60 backdrop-blur-2xl relative overflow-hidden">
-        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-3">
-            <Sparkles className="text-neon-blue w-5 h-5" />
-            <span className="font-display font-bold text-xl">BOL-<span className="text-neon-blue">AI</span></span>
+        <footer className="border-t border-white/10 py-12 mt-32 bg-black/60 backdrop-blur-2xl relative overflow-hidden">
+          <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-3">
+              <Sparkles className="text-neon-blue w-5 h-5" />
+              <span className="font-display font-bold text-xl">BOL-<span className="text-neon-blue">AI</span></span>
+            </div>
+            <div className="flex flex-wrap justify-center gap-6 text-sm text-white/60">
+              <button onClick={() => { setActivePage('about'); window.scrollTo(0, 0); }} className="hover:text-neon-blue transition-colors">About Us</button>
+              <button onClick={() => { setActivePage('privacy'); window.scrollTo(0, 0); }} className="hover:text-neon-purple transition-colors">Privacy Policy</button>
+              <button onClick={() => { setActivePage('contact'); window.scrollTo(0, 0); }} className="hover:text-white transition-colors">Contact Us</button>
+              {user?.email === 'vivekdalvi147@gmail.com' && (
+                <button onClick={() => { setActivePage('admin'); window.scrollTo(0, 0); }} className="hover:text-red-500 transition-colors">Admin</button>
+              )}
+            </div>
+            <div className="flex flex-col items-center md:items-end gap-1">
+              <p className="text-white/40 text-sm">© 2026 Bol-AI. All rights reserved.</p>
+              <p className="text-neon-purple/70 text-xs font-bold tracking-wider uppercase">Developer Vivek Dalvi</p>
+            </div>
           </div>
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-white/60">
-            <button onClick={() => { setActivePage('about'); window.scrollTo(0, 0); }} className="hover:text-neon-blue transition-colors">About Us</button>
-            <button onClick={() => { setActivePage('privacy'); window.scrollTo(0, 0); }} className="hover:text-neon-purple transition-colors">Privacy Policy</button>
-            <button onClick={() => { setActivePage('contact'); window.scrollTo(0, 0); }} className="hover:text-white transition-colors">Contact Us</button>
-          </div>
-          <div className="flex flex-col items-center md:items-end gap-1">
-            <p className="text-white/40 text-sm">© 2026 Bol-AI. All rights reserved.</p>
-            <p className="text-neon-purple/70 text-xs font-bold tracking-wider uppercase">Developer Vivek Dalvi</p>
-          </div>
-        </div>
-      </footer>
+        </footer>
 
       {/* Sidebar Menu */}
       <AnimatePresence>

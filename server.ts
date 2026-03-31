@@ -100,10 +100,10 @@ app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
 app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
   try {
     const { prompt } = req.body;
-    const apiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI;
+    const apiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(400).json({ error: "API Key missing (BOL_AI_API_KEY). Please add it in AI Studio Secrets." });
+      return res.status(400).json({ error: "API Key missing. Please add GEMINI_API_KEY or BOL_AI_API_KEY in AI Studio Secrets." });
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -127,7 +127,7 @@ USER INPUT:
 "${prompt.substring(0, 2000)}"`;
 
     const response = await ai.models.generateContent({
-      model: "gemma-2-27b-it",
+      model: "gemini-3.1-flash-lite-preview",
       contents: upgradeInstruction
     });
 
@@ -298,7 +298,7 @@ async function startServer() {
     
     // Clean route for admin panel
     app.get('/admin', (req, res) => {
-      res.sendFile(path.join(distPath, 'admin.html'));
+      res.sendFile(path.join(distPath, 'index.html'));
     });
 
     app.get('*', (req, res) => {
