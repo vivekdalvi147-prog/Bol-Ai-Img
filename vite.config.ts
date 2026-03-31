@@ -18,6 +18,7 @@ export default defineConfig(({mode}) => {
       rollupOptions: {
         input: {
           main: 'index.html',
+          admin: 'public/admin.html',
         },
       },
     },

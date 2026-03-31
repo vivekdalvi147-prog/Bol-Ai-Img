@@ -53,7 +53,7 @@ export default function App() {
   const [maintenanceMode, setMaintenanceMode] = useState(0); // 0: Off, 1: Full, 2: Soft
   const [isBolAiEnhanceGlobalEnabled, setIsBolAiEnhanceGlobalEnabled] = useState(true);
   const [userIp, setUserIp] = useState<string>('unknown');
-  const [activePage, setActivePage] = useState<'home' | 'about' | 'privacy' | 'contact' | 'admin'>('home');
+  const [activePage, setActivePage] = useState<'home' | 'about' | 'privacy' | 'contact'>('home');
   const [exampleImages, setExampleImages] = useState<string[]>(EXAMPLE_IMAGES);
   const [generationsCount, setGenerationsCount] = useState(() => {
     const saved = localStorage.getItem('bol_ai_generations');
@@ -1083,41 +1083,6 @@ export default function App() {
               </div>
             </div>
           </section>
-        ) : activePage === 'admin' ? (
-          <section className="container mx-auto px-6 py-20 max-w-4xl text-center">
-            <h2 className="text-4xl font-display font-bold mb-8 text-white">Admin Control Panel</h2>
-            <div className="glass p-8 rounded-3xl border border-white/10 space-y-6 text-left">
-              {user?.email === 'vivekdalvi147@gmail.com' ? (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-6 bg-white/5 rounded-2xl border border-white/10">
-                    <div>
-                      <h3 className="text-xl font-bold text-white mb-2">Bol-AI Enhance Feature</h3>
-                      <p className="text-sm text-white/60">Enable or disable the Bol-AI Enhance feature globally for all users.</p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await setDoc(doc(db, 'settings', 'general'), {
-                            isBolAiEnhanceGlobalEnabled: !isBolAiEnhanceGlobalEnabled
-                          }, { merge: true });
-                        } catch (error) {
-                          console.error("Error updating settings:", error);
-                        }
-                      }}
-                      className={`px-6 py-3 rounded-xl font-bold transition-all ${isBolAiEnhanceGlobalEnabled ? 'bg-neon-blue text-black' : 'bg-red-500/20 text-red-500 border border-red-500/50'}`}
-                    >
-                      {isBolAiEnhanceGlobalEnabled ? 'Enabled' : 'Disabled'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-red-500 font-bold text-xl">Access Denied</p>
-                  <p className="text-white/60 mt-2">You do not have permission to view this page.</p>
-                </div>
-              )}
-            </div>
-          </section>
         ) : null}
       </main>
 
@@ -1132,7 +1097,7 @@ export default function App() {
               <button onClick={() => { setActivePage('privacy'); window.scrollTo(0, 0); }} className="hover:text-neon-purple transition-colors">Privacy Policy</button>
               <button onClick={() => { setActivePage('contact'); window.scrollTo(0, 0); }} className="hover:text-white transition-colors">Contact Us</button>
               {user?.email === 'vivekdalvi147@gmail.com' && (
-                <button onClick={() => { setActivePage('admin'); window.scrollTo(0, 0); }} className="hover:text-red-500 transition-colors">Admin</button>
+                <a href="/admin" target="_blank" className="hover:text-red-500 transition-colors">Admin</a>
               )}
             </div>
             <div className="flex flex-col items-center md:items-end gap-1">

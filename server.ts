@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
+import FormData from 'form-data';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,15 +67,19 @@ app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
       imagePayload = imageUrl.split(',')[1];
     }
 
-    const params = new URLSearchParams();
-    params.append("image", imagePayload);
+    const form = new FormData();
+    form.append("image", imagePayload);
 
     const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
       method: 'POST',
-      body: params
+      body: form as any
     });
     
     const data = await response.json();
+    if (!data.success) {
+      console.error("ImgBB API Error:", data);
+      return res.status(400).json({ error: data.error?.message || "ImgBB upload failed" });
+    }
     res.json(data);
   } catch (error: any) {
     console.error("ImgBB Upload Error:", error);
@@ -278,6 +283,16 @@ app.get("/api/tasks/:taskId", async (req, res) => {
     console.error("Task Check Error:", error);
     res.status(500).json({ error: error.message });
   }
+});
+
+app.get("/api/admin/health", rateLimiter, async (req, res) => {
+  res.json({
+    gemini: !!process.env.GEMINI_API_KEY,
+    modelscope: !!process.env.VIVEK_AI_BOL_IMG,
+    imgbb: !!process.env.IMG_VIVEKAPP_AI,
+    bol_ai: !!process.env.BOL_AI_API_KEY,
+    txt_model: !!process.env.TXT_MODEL_VIVEK_BOL_AI
+  });
 });
 
 async function startServer() {
