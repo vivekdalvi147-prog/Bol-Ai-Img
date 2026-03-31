@@ -62,23 +62,32 @@ app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
       return res.status(400).json({ error: "ImgBB API Key missing (IMG_VIVEKAPP_AI). Please add it in AI Studio Secrets." });
     }
 
+    if (!imageUrl) {
+      return res.status(400).json({ error: "imageUrl is required" });
+    }
+
     let imagePayload = imageUrl;
-    if (imageUrl.startsWith('data:image')) {
+    if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image')) {
       imagePayload = imageUrl.split(',')[1];
     }
 
     const form = new FormData();
     form.append("image", imagePayload);
 
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    const fetchFn = await getFetch() as any;
+    const response = await fetchFn(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
       method: 'POST',
-      body: form as any
+      body: form as any,
+      headers: (form as any).getHeaders ? (form as any).getHeaders() : undefined
     });
     
     const data = await response.json();
     if (!data.success) {
-      console.error("ImgBB API Error:", data);
-      return res.status(400).json({ error: data.error?.message || "ImgBB upload failed" });
+      console.error("ImgBB API Error:", JSON.stringify(data, null, 2));
+      return res.status(400).json({ 
+        error: data.error?.message || "ImgBB upload failed",
+        code: data.error?.code
+      });
     }
     res.json(data);
   } catch (error: any) {

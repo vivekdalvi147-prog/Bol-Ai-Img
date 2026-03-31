@@ -395,16 +395,18 @@ export default function App() {
             let finalDisplayUrl = finalImageUrl;
             try {
               const base64DataWithPrefix = await fetchAsBase64(finalImageUrl);
-              const base64Data = base64DataWithPrefix.split(',')[1]; // Strip prefix
+              const base64Data = base64DataWithPrefix.includes(',') ? base64DataWithPrefix.split(',')[1] : base64DataWithPrefix;
 
-              const imgbbRes = await fetch('/api/upload-imgbb', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageUrl: base64Data })
-              });
-              const imgbbData = await imgbbRes.json();
-              if (imgbbData.success) {
-                finalDisplayUrl = imgbbData.data.url;
+              if (base64Data) {
+                const imgbbRes = await fetch('/api/upload-imgbb', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ imageUrl: base64Data })
+                });
+                const imgbbData = await imgbbRes.json();
+                if (imgbbData.success) {
+                  finalDisplayUrl = imgbbData.data.url;
+                }
               }
             } catch (e) {
               console.error("ImgBB Upload Failed", e);
