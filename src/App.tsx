@@ -41,7 +41,6 @@ export default function App() {
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [isUiMode, setIsUiMode] = useState(() => localStorage.getItem('bol_ai_ui_mode') === 'true');
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [user, setUser] = useState<User | null>(null);
@@ -218,65 +217,20 @@ export default function App() {
     }
   };
 
-  const addWatermark = async (imageUrl: string): Promise<string> => {
-    try {
-      const base64Data = await fetchAsBase64(imageUrl);
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error("Could not get canvas context"));
-            return;
-          }
-
-          // Draw original image
-          ctx.drawImage(img, 0, 0);
-
-          // Add Watermark
-          ctx.fillStyle = "rgba(255, 255, 255, 0.8)"; // More visible white
-          ctx.font = `bold ${Math.max(30, img.width * 0.04)}px 'Inter', sans-serif`;
-          ctx.textAlign = "right";
-          ctx.textBaseline = "bottom";
-          
-          // Add shadow for better visibility
-          ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
-          ctx.shadowBlur = 6;
-          ctx.shadowOffsetX = 3;
-          ctx.shadowOffsetY = 3;
-
-          const text = "Bol-Ai";
-          const padding = Math.max(20, img.width * 0.03);
-          ctx.fillText(text, img.width - padding, img.height - padding);
-
-          resolve(canvas.toDataURL('image/png'));
-        };
-
-        img.onerror = () => {
-          reject(new Error("Failed to load image for watermarking"));
-        };
-
-        img.src = base64Data;
-      });
-    } catch (error) {
-      console.error("Watermark error:", error);
-      throw error;
-    }
-  };
-
   const handleDownload = async (url: string) => {
     try {
-      const watermarkedBase64 = await addWatermark(url);
+      const downloadUrl = `/api/download?url=${encodeURIComponent(url)}`;
+      const response = await fetch(downloadUrl);
+      if (!response.ok) throw new Error("Failed to fetch image");
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = watermarkedBase64;
+      link.href = blobUrl;
       link.download = `bol-ai-${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch (error) {
       console.error("Download error:", error);
       window.open(url, '_blank');
@@ -289,7 +243,7 @@ export default function App() {
     if (isGenerating || isEnhancing) return;
     
     setIsGenerating(true);
-    if (!prompt.trim() && !referenceImage) {
+    if (!prompt.trim()) {
       setIsGenerating(false);
       return;
     }
@@ -321,30 +275,9 @@ export default function App() {
     let finalPrompt = isUiMode ? `${UI_DESIGN_PROMPT_PREFIX}${prompt}` : prompt;
     const originalUserPrompt = prompt;
     let currentRequestId: string | null = null;
-    let finalReferenceImageUrl: string | null = null;
     const startTime = Date.now();
 
     try {
-      // Step 0: If there's a reference image, upload it to ImgBB first
-      if (referenceImage) {
-        console.log("Uploading reference image to ImgBB...");
-        try {
-          const base64Data = referenceImage.split(',')[1];
-          const imgbbRes = await fetch('/api/upload-imgbb', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageUrl: base64Data })
-          });
-          const imgbbData = await imgbbRes.json();
-          if (imgbbData.success) {
-            finalReferenceImageUrl = imgbbData.data.url;
-            console.log("Reference image uploaded:", finalReferenceImageUrl);
-          }
-        } catch (e) {
-          console.error("Reference Image ImgBB Upload Failed", e);
-        }
-      }
-
       // Track request in Firestore
       console.log("Tracking request in Firestore...");
       const reqRef = await addDoc(collection(db, 'requests'), {
@@ -353,7 +286,6 @@ export default function App() {
         userIp: userIp,
         prompt: originalUserPrompt,
         enhancedPrompt: isEnhanceEnabled ? null : originalUserPrompt, // Will be updated if enhanced
-        referenceImageUrl: finalReferenceImageUrl,
         status: 'active',
         createdAt: serverTimestamp()
       });
@@ -402,8 +334,7 @@ export default function App() {
         body: JSON.stringify({ 
           prompt: finalPrompt, 
           size: selectedSize,
-          quality: quality,
-          image_url: finalReferenceImageUrl || referenceImage
+          quality: quality
         }),
       });
 
@@ -484,7 +415,6 @@ export default function App() {
                 userIp: userIp,
                 prompt: finalPrompt,
                 imageUrl: finalDisplayUrl,
-                referenceImageUrl: finalReferenceImageUrl,
                 size: selectedSize,
                 createdAt: serverTimestamp()
               };
@@ -723,20 +653,10 @@ export default function App() {
             
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 flex flex-col gap-2">
-                {referenceImage && (
-                  <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-neon-blue/50 group/ref">
-                    <img src={referenceImage} alt="Reference" className="w-full h-full object-cover" />
-                    <button 
-                      onClick={() => setReferenceImage(null)}
-                      className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white hover:bg-red-500 transition-colors opacity-0 group-hover/ref:opacity-100"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
                 <textarea 
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
+                  maxLength={2000}
                   placeholder={isUiMode ? "Describe the UI style you want to recreate..." : "Describe what you want to see (any language)..."}
                   className="w-full bg-transparent px-6 py-4 outline-none text-white placeholder:text-white/20 font-medium resize-none min-h-[80px] max-h-[300px] scrollbar-hide"
                   onKeyDown={(e) => {
@@ -747,31 +667,13 @@ export default function App() {
                   }}
                   disabled={isEnhancing || isGenerating}
                 />
+                <div className="text-right text-[10px] text-white/30 px-2">
+                  {prompt.length}/2000
+                </div>
               </div>
               
               <div className="flex flex-col gap-2 justify-end">
                 <div className="flex gap-2">
-                  <input 
-                    type="file" 
-                    id="ref-image" 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setReferenceImage(reader.result as string);
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                  <label 
-                    htmlFor="ref-image"
-                    className={`p-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${referenceImage ? 'bg-neon-blue text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
-                  >
-                    <ImagePlus className="w-4 h-4" />
-                    <span className="hidden md:inline">REF IMG</span>
-                  </label>
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => setIsUiMode(!isUiMode)}
@@ -814,7 +716,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={handleGenerate}
-                  disabled={(!prompt.trim() && !referenceImage) || isGenerating || isEnhancing || maintenanceMode === 1}
+                  disabled={!prompt.trim() || isGenerating || isEnhancing || maintenanceMode === 1}
                   className="bg-gradient-to-r from-neon-blue to-neon-purple px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
