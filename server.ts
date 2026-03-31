@@ -298,7 +298,7 @@ async function startServer() {
     
     // Clean route for admin panel
     app.get('/admin', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      res.sendFile(path.join(distPath, 'admin.html'));
     });
 
     app.get('*', (req, res) => {
