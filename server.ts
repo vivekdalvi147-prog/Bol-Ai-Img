@@ -10,14 +10,30 @@ const __dirname = path.dirname(__filename);
 // Use global fetch if available, otherwise fallback to node-fetch
 const getFetch = async () => {
   if (typeof fetch !== 'undefined') return fetch;
-  const nodeFetch = await import("node-fetch");
-  return nodeFetch.default;
+  try {
+    const nodeFetch = await import("node-fetch");
+    return nodeFetch.default;
+  } catch (e) {
+    console.error("Failed to load node-fetch:", e);
+    return null;
+  }
 };
 
 const app = express();
 app.set('trust proxy', true);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Environment Check for Debugging (Visible in Vercel Logs)
+console.log("--- Bol-AI Environment Check ---");
+console.log("VERCEL Environment:", !!process.env.VERCEL);
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? "SET" : "MISSING");
+console.log("VIVEK_AI_BOL_IMG:", process.env.VIVEK_AI_BOL_IMG ? "SET" : "MISSING");
+console.log("IMG_VIVEKAPP_AI:", process.env.IMG_VIVEKAPP_AI ? "SET" : "MISSING");
+console.log("BOL_AI_API_KEY:", process.env.BOL_AI_API_KEY ? "SET" : "MISSING");
+console.log("TXT_MODEL_VIVEK_BOL_AI:", process.env.TXT_MODEL_VIVEK_BOL_AI ? "SET" : "MISSING");
+console.log("--------------------------------");
 
 // Simple rate limiter to prevent abuse
 const rateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -75,6 +91,8 @@ app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
     form.append("image", imagePayload);
 
     const fetchFn = await getFetch() as any;
+    if (!fetchFn) throw new Error("Fetch implementation not found");
+
     const response = await fetchFn(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
       method: 'POST',
       body: form as any,
@@ -131,6 +149,7 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
           temperature: 0.7,
           topP: 0.95,
           topK: 40,
+          maxOutputTokens: 2000,
         }
       });
       enhancedText = response.text || prompt;
@@ -168,6 +187,8 @@ app.get("/api/download", async (req, res) => {
     }
 
     const fetchFn = await getFetch() as any;
+    if (!fetchFn) throw new Error("Fetch implementation not found");
+    
     const response = await fetchFn(fetchUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -307,15 +328,8 @@ app.get("/api/admin/health", rateLimiter, async (req, res) => {
 async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
-  console.log("Environment Check:");
-  console.log("- GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? "SET" : "MISSING");
-  console.log("- VIVEK_AI_BOL_IMG:", process.env.VIVEK_AI_BOL_IMG ? "SET" : "MISSING");
-  console.log("- IMG_VIVEKAPP_AI:", process.env.IMG_VIVEKAPP_AI ? "SET" : "MISSING");
-  console.log("- BOL_AI_API_KEY:", process.env.BOL_AI_API_KEY ? "SET" : "MISSING");
-  console.log("- TXT_MODEL_VIVEK_BOL_AI:", process.env.TXT_MODEL_VIVEK_BOL_AI ? "SET" : "MISSING");
-
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -327,7 +341,8 @@ async function startServer() {
     app.get('/admin', (req, res) => {
       res.sendFile(path.join(process.cwd(), 'public', 'admin.html'));
     });
-  } else {
+  } else if (!process.env.VERCEL) {
+    // Only serve static files if NOT on Vercel (Vercel handles this via rewrites)
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     
@@ -341,14 +356,13 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
-// Only start the server if we are not running on Vercel
-if (!process.env.VERCEL) {
-  startServer();
-}
+startServer();
 
 export default app;
