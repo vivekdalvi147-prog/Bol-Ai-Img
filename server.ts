@@ -2,21 +2,21 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
-import FormData from 'form-data';
+import FormDataPackage from 'form-data';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Use global fetch if available, otherwise fallback to node-fetch
-const getFetch = async () => {
+// Use global fetch/FormData if available (Node 18+), otherwise fallback
+const getFetch = () => {
   if (typeof fetch !== 'undefined') return fetch;
-  try {
-    const nodeFetch = await import("node-fetch");
-    return nodeFetch.default;
-  } catch (e) {
-    console.error("Failed to load node-fetch:", e);
-    return null;
-  }
+  return null; // Will fallback to dynamic import in routes if needed
+};
+
+const getFormData = () => {
+  // Use global FormData if fetch is also global (Node 18+)
+  if (typeof fetch !== 'undefined' && typeof FormData !== 'undefined') return FormData;
+  return FormDataPackage;
 };
 
 const app = express();
@@ -47,35 +47,31 @@ app.get("/api/health", (req, res) => {
 
 // Utility function for fetch with retries
 async function fetchWithRetry(url: string, options: any, retries = 3, delay = 1000) {
-  const fetchFn = await getFetch() as any;
+  let fetchFn = getFetch() as any;
+  if (!fetchFn) {
+    const nodeFetch = await import("node-fetch");
+    fetchFn = nodeFetch.default;
+  }
+  
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetchFn(url, options);
-      if (response.status === 429 || response.status >= 500) {
-        const text = await response.text();
-        console.warn(`Fetch attempt ${i + 1} failed with status ${response.status}: ${text.substring(0, 100)}`);
-        if (i === retries - 1) return response;
-        await new Promise(res => setTimeout(res, delay * (i + 1))); // Exponential backoff
-        continue;
-      }
-      return response;
-    } catch (error: any) {
-      if (i === retries - 1) throw error;
-      console.warn(`Fetch failed (attempt ${i + 1}/${retries}): ${error.message}. Retrying...`);
-      await new Promise(res => setTimeout(res, delay));
+      if (response.ok || i === retries - 1) return response;
+    } catch (err) {
+      if (i === retries - 1) throw err;
     }
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
-  throw new Error("Fetch failed after retries");
 }
 
 // API Route to Upload to ImgBB
 app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
   try {
     const { imageUrl } = req.body;
-    const apiKey = process.env.IMG_VIVEKAPP_AI;
+    const apiKey = process.env.VIVEK_AI_BOL_IMG || process.env.IMG_VIVEKAPP_AI;
     
     if (!apiKey) {
-      return res.status(400).json({ error: "ImgBB API Key missing (IMG_VIVEKAPP_AI). Please add it in AI Studio Secrets." });
+      return res.status(400).json({ error: "ImgBB API Key missing. Please add it in AI Studio Secrets." });
     }
 
     if (!imageUrl) {
@@ -87,16 +83,20 @@ app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
       imagePayload = imageUrl.split(',')[1];
     }
 
-    const form = new FormData();
+    const FormDataClass = getFormData() as any;
+    const form = new FormDataClass();
     form.append("image", imagePayload);
 
-    const fetchFn = await getFetch() as any;
-    if (!fetchFn) throw new Error("Fetch implementation not found");
+    let fetchFn = getFetch() as any;
+    if (!fetchFn) {
+      const nodeFetch = await import("node-fetch");
+      fetchFn = nodeFetch.default;
+    }
 
     const response = await fetchFn(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
       method: 'POST',
       body: form as any,
-      headers: (form as any).getHeaders ? (form as any).getHeaders() : undefined
+      headers: form.getHeaders ? form.getHeaders() : undefined
     });
     
     const data = await response.json();
@@ -186,8 +186,11 @@ app.get("/api/download", async (req, res) => {
       fetchUrl = `${protocol}://${host}${url}`;
     }
 
-    const fetchFn = await getFetch() as any;
-    if (!fetchFn) throw new Error("Fetch implementation not found");
+    let fetchFn = getFetch() as any;
+    if (!fetchFn) {
+      const nodeFetch = await import("node-fetch");
+      fetchFn = nodeFetch.default;
+    }
     
     const response = await fetchFn(fetchUrl);
     if (!response.ok) {
@@ -325,6 +328,17 @@ app.get("/api/admin/health", rateLimiter, async (req, res) => {
   });
 });
 
+// Global Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("--- GLOBAL ERROR ---");
+  console.error(err);
+  res.status(500).json({ 
+    error: "Internal Server Error", 
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
 async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
@@ -363,6 +377,10 @@ async function startServer() {
   }
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+} else {
+  console.log("Bol-AI Server running in Vercel environment");
+}
 
 export default app;
