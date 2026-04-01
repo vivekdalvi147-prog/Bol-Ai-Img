@@ -1,28 +1,16 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { GoogleGenAI } from "@google/genai";
-import FormData from 'form-data';
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Use global fetch if available, otherwise fallback to node-fetch
-const getFetch = async () => {
-  if (typeof fetch !== 'undefined') return fetch;
-  try {
-    const nodeFetch = await import("node-fetch");
-    return nodeFetch.default;
-  } catch (e) {
-    console.error("Failed to load node-fetch:", e);
-    return null;
-  }
-};
-
 const app = express();
 app.set('trust proxy', true);
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '10mb' })); // Reduced limit for Vercel (max 4.5MB anyway)
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Environment Check for Debugging (Visible in Vercel Logs)
 console.log("--- Bol-AI Environment Check ---");
@@ -47,10 +35,9 @@ app.get("/api/health", (req, res) => {
 
 // Utility function for fetch with retries
 async function fetchWithRetry(url: string, options: any, retries = 3, delay = 1000) {
-  const fetchFn = await getFetch() as any;
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetchFn(url, options);
+      const response = await (fetch as any)(url, options);
       if (response.status === 429 || response.status >= 500) {
         const text = await response.text();
         console.warn(`Fetch attempt ${i + 1} failed with status ${response.status}: ${text.substring(0, 100)}`);
@@ -87,16 +74,12 @@ app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
       imagePayload = imageUrl.split(',')[1];
     }
 
-    const form = new FormData();
-    form.append("image", imagePayload);
+    const params = new URLSearchParams();
+    params.append("image", imagePayload);
 
-    const fetchFn = await getFetch() as any;
-    if (!fetchFn) throw new Error("Fetch implementation not found");
-
-    const response = await fetchFn(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    const response = await (fetch as any)(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
       method: 'POST',
-      body: form as any,
-      headers: (form as any).getHeaders ? (form as any).getHeaders() : undefined
+      body: params
     });
     
     const data = await response.json();
@@ -149,7 +132,10 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
           temperature: 0.7,
           topP: 0.95,
           topK: 40,
-          maxOutputTokens: 2000,
+          maxOutputTokens: 16384,
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.MINIMAL
+          }
         }
       });
       enhancedText = response.text || prompt;
@@ -186,10 +172,7 @@ app.get("/api/download", async (req, res) => {
       fetchUrl = `${protocol}://${host}${url}`;
     }
 
-    const fetchFn = await getFetch() as any;
-    if (!fetchFn) throw new Error("Fetch implementation not found");
-    
-    const response = await fetchFn(fetchUrl);
+    const response = await (fetch as any)(fetchUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
@@ -363,6 +346,8 @@ async function startServer() {
   }
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
 
 export default app;
