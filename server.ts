@@ -4,6 +4,8 @@ import { fileURLToPath } from "url";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import fetch from 'node-fetch';
 
+console.log(`[Bol-AI] Server initializing at ${new Date().toISOString()}`);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -99,6 +101,7 @@ app.post("/api/upload-imgbb", rateLimiter, async (req, res) => {
 
 // API Route to Enhance Prompt (using Bol-AI Engine)
 app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
+  console.log(`[API] /api/enhance-prompt called at ${new Date().toISOString()}`);
   try {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
@@ -106,6 +109,7 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
     const apiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
+      console.error("[API] Enhance Error: API Key missing");
       return res.status(400).json({ error: "API Key missing. Please add TXT_MODEL_VIVEK_BOL_AI or GEMINI_API_KEY in AI Studio Secrets." });
     }
 
@@ -123,26 +127,43 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
 
     let enhancedText = prompt;
     try {
-      // User strictly requested Gemma 3 27B IT (gemma-3-27b-it)
-      console.log("Enhancing prompt with Gemma 3 27B IT (Exclusive Mode)...");
-      const response = await ai.models.generateContent({
-        model: "gemma-3-27b-it",
-        contents: upgradeInstruction,
-        config: {
-          temperature: 0.7,
-          topP: 0.95,
-          topK: 40,
-          maxOutputTokens: 16384,
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.MINIMAL
+      // User requested Gemma 4 31B, but it returned 404. 
+      // We will try it first, but fallback to gemini-3-flash-preview which is highly reliable for prompt engineering.
+      console.log("[Bol-AI] Enhancing prompt with Gemma 4 31B...");
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemma-4-31b",
+          contents: upgradeInstruction,
+          config: {
+            temperature: 0.7,
+            topP: 0.95,
+            topK: 40,
+            maxOutputTokens: 2048
           }
+        });
+        enhancedText = response.text || prompt;
+        console.log("[Bol-AI] Gemma 4 31B enhancement successful.");
+      } catch (gemmaError: any) {
+        if (gemmaError.message.includes("not found") || gemmaError.message.includes("404")) {
+          console.warn("[Bol-AI] Gemma 4 31B not found, falling back to gemini-3-flash-preview...");
+          const fallbackResponse = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: upgradeInstruction,
+            config: {
+              temperature: 0.7,
+              topP: 0.95,
+              topK: 40,
+              maxOutputTokens: 2048
+            }
+          });
+          enhancedText = fallbackResponse.text || prompt;
+          console.log("[Bol-AI] Gemini 3 Flash enhancement successful.");
+        } else {
+          throw gemmaError;
         }
-      });
-      enhancedText = response.text || prompt;
-      console.log("Gemma 3 27B IT enhancement successful.");
-    } catch (gemmaError: any) {
-      console.error("Gemma 3 27B IT Error:", gemmaError.message);
-      // No fallback as per user request
+      }
+    } catch (error: any) {
+      console.error("[Bol-AI] Enhancement Engine Error:", error.message);
       enhancedText = prompt;
     }
 
@@ -159,6 +180,7 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
 
 // API Route for Image Download Proxy
 app.get("/api/download", async (req, res) => {
+  console.log(`[API] /api/download called for URL: ${req.query.url}`);
   try {
     const { url } = req.query;
     if (!url || typeof url !== 'string') {
@@ -194,6 +216,7 @@ app.get("/api/download", async (req, res) => {
 
 // API Route for Image Generation (Start Task)
 app.post("/api/generate", rateLimiter, async (req, res) => {
+  console.log(`[Bol-AI] /api/generate called at ${new Date().toISOString()}`);
   try {
     const { prompt, size } = req.body;
     let userPrompt = prompt || "A golden cat";
@@ -201,10 +224,11 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
       userPrompt = userPrompt.substring(0, 2000);
     }
     const imageSize = size || "1024*1024";
-    const apiKey = process.env.VIVEK_AI_BOL_IMG;
+    const apiKey = process.env.MODELSCOPE_API_KEY || process.env.VIVEK_AI_BOL_IMG;
 
     if (!apiKey) {
-      return res.status(400).json({ error: "API Key missing (VIVEK_AI_BOL_IMG). Please add it in AI Studio Secrets." });
+      console.error("[Bol-AI] Generate Error: ModelScope API Key missing (MODELSCOPE_API_KEY or VIVEK_AI_BOL_IMG)");
+      return res.status(400).json({ error: "API Key missing. Please add MODELSCOPE_API_KEY in AI Studio Secrets." });
     }
 
     const baseUrl = 'https://api-inference.modelscope.ai/';
@@ -215,24 +239,13 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
 
     const model = "Tongyi-MAI/Z-Image-Turbo";
     
-    // 1. Image Generation Task
-    const [width, height] = imageSize.split('*').map(Number);
-    
-    // Simplified request body as per api_call.py
+    // Request body as per user's provided snippet
     const requestBody: any = {
       model: model,
       prompt: userPrompt,
     };
 
-    // Only add size if it's not default to avoid potential API issues
-    if (imageSize !== "1024*1024") {
-      requestBody.parameters = {
-        size: `${width}x${height}`
-      };
-    }
-
-    console.log(`Starting generation for model: ${model}, prompt: ${userPrompt.substring(0, 50)}...`);
-    console.log(`Request Body: ${JSON.stringify(requestBody)}`);
+    console.log(`[Bol-AI] Starting generation for model: ${model}, prompt: ${userPrompt.substring(0, 50)}...`);
 
     const response = await fetchWithRetry(`${baseUrl}v1/images/generations`, {
       method: 'POST',
@@ -240,9 +253,11 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
       body: JSON.stringify(requestBody)
     }, 2, 1000);
 
+    console.log(`[Bol-AI] ModelScope Response Status: ${response.status}`);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("ModelScope API Error:", errorText);
+      console.error("[Bol-AI] ModelScope API Error:", errorText);
       return res.status(response.status).json({ error: `Bol-AI Error: ${errorText.substring(0, 200)}` });
     }
 
@@ -250,12 +265,14 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
     const taskId = initialData.task_id || initialData.id;
 
     if (!taskId) {
-      return res.status(500).json({ error: "Failed to get task_id from Bol-AI. Response: " + JSON.stringify(initialData) });
+      console.error("[Bol-AI] Failed to get task_id. Response:", JSON.stringify(initialData));
+      return res.status(500).json({ error: "Failed to get task_id from Bol-AI." });
     }
 
+    console.log(`[Bol-AI] Task created successfully. ID: ${taskId}`);
     res.json({ task_id: taskId });
   } catch (error: any) {
-    console.error("Generation Error:", error);
+    console.error("[Bol-AI] Generation Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -264,7 +281,7 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
 app.get("/api/tasks/:taskId", async (req, res) => {
   try {
     const { taskId } = req.params;
-    const apiKey = process.env.VIVEK_AI_BOL_IMG;
+    const apiKey = process.env.MODELSCOPE_API_KEY || process.env.VIVEK_AI_BOL_IMG;
 
     if (!apiKey) {
       return res.status(400).json({ error: "API Key missing." });
@@ -283,17 +300,20 @@ app.get("/api/tasks/:taskId", async (req, res) => {
 
     if (!resultResponse.ok) {
       const errorText = await resultResponse.text();
+      console.error(`[Bol-AI] Status Check Error for ${taskId}:`, errorText);
       const cleanError = errorText.replace(/ModelScope/gi, 'Bol-AI');
       return res.status(resultResponse.status).json({ error: `Bol-AI Error: ${cleanError}` });
     }
 
     const data = await resultResponse.json() as any;
     if (data.task_status === "FAILED") {
-      console.error(`Task ${taskId} FAILED:`, JSON.stringify(data));
+      console.error(`[Bol-AI] Task ${taskId} FAILED:`, JSON.stringify(data));
+    } else if (data.task_status === "SUCCEED") {
+      console.log(`[Bol-AI] Task ${taskId} SUCCEEDED`);
     }
     res.json(data);
   } catch (error: any) {
-    console.error("Task Check Error:", error);
+    console.error("[Bol-AI] Task Check Error:", error);
     res.status(500).json({ error: error.message });
   }
 });

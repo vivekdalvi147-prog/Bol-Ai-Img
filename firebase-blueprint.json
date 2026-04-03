@@ -1,0 +1,102 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information tracked for admin and personalization.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user." },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "photoURL": { "type": "string", "format": "uri", "description": "URL to the user's profile photo." },
+        "lastLogin": { "type": "string", "format": "date-time", "description": "Timestamp of the user's last login." }
+      },
+      "required": ["uid", "lastLogin"]
+    },
+    "Generation": {
+      "title": "Generation",
+      "description": "A successfully generated image and its metadata.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the user who generated the image." },
+        "userEmail": { "type": "string", "format": "email", "description": "Email of the user who generated the image." },
+        "userIp": { "type": "string", "description": "IP address of the user." },
+        "prompt": { "type": "string", "description": "The final prompt used for generation." },
+        "imageUrl": { "type": "string", "format": "uri", "description": "URL of the generated image." },
+        "size": { "type": "string", "description": "The requested image size (e.g., 1024*1024)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the generation was saved." }
+      },
+      "required": ["userId", "prompt", "imageUrl", "createdAt"]
+    },
+    "Request": {
+      "title": "Request",
+      "description": "A log of an image generation request, including its status and performance.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the user who made the request." },
+        "userEmail": { "type": "string", "format": "email", "description": "Email of the user." },
+        "userIp": { "type": "string", "description": "IP address of the user." },
+        "prompt": { "type": "string", "description": "The original user prompt." },
+        "enhancedPrompt": { "type": "string", "description": "The AI-enhanced version of the prompt, if applicable." },
+        "status": { 
+          "type": "string", 
+          "enum": ["active", "completed", "error"],
+          "description": "Current status of the request." 
+        },
+        "error": { "type": "string", "description": "Error message if the request failed." },
+        "durationMs": { "type": "number", "description": "Time taken for generation in milliseconds." },
+        "imageUrl": { "type": "string", "format": "uri", "description": "URL of the resulting image." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the request started." }
+      },
+      "required": ["userId", "prompt", "status", "createdAt"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Global application settings and engine configurations.",
+      "type": "object",
+      "properties": {
+        "maintenanceMode": { 
+          "type": "integer", 
+          "enum": [0, 1, 2],
+          "description": "0: Off, 1: Full Maintenance, 2: Soft Error Mode." 
+        },
+        "isBolAiEnhanceGlobalEnabled": { "type": "boolean", "description": "Global toggle for prompt enhancement feature." },
+        "rateLimit": { "type": "integer", "description": "Requests per minute limit per user." },
+        "maxConcurrent": { "type": "integer", "description": "Maximum global concurrent generations." }
+      }
+    },
+    "Example": {
+      "title": "Example",
+      "description": "An example image shown in the public gallery.",
+      "type": "object",
+      "properties": {
+        "imageUrl": { "type": "string", "format": "uri", "description": "URL of the example image." },
+        "prompt": { "type": "string", "description": "The prompt used for this example." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the example was added." }
+      },
+      "required": ["imageUrl", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents."
+    },
+    "/generations/{docId}": {
+      "schema": "Generation",
+      "description": "Collection of generated images."
+    },
+    "/requests/{docId}": {
+      "schema": "Request",
+      "description": "Logs of all generation attempts."
+    },
+    "/settings/general": {
+      "schema": "Setting",
+      "description": "Global configuration document."
+    },
+    "/examples/{docId}": {
+      "schema": "Example",
+      "description": "Public gallery examples."
+    }
+  }
+}

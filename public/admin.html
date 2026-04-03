@@ -385,7 +385,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, getDocs, doc, setDoc, getDoc, onSnapshot, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { initializeFirestore, collection, query, orderBy, getDocs, doc, setDoc, getDoc, onSnapshot, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app-check.js";
 
         // Initialize Lucide icons
@@ -409,7 +409,9 @@
         });
 
         const auth = getAuth(app);
-        const db = getFirestore(app);
+        const db = initializeFirestore(app, {
+            experimentalForceLongPolling: true
+        });
 
         // UI Elements
         const loginScreen = document.getElementById('login-screen');
