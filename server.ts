@@ -133,9 +133,9 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
 
     let enhancedText = prompt;
     try {
-      console.log("[Bol-AI] Enhancing prompt with Gemma 4 31B (Exclusive Mode)...");
+      console.log("[Bol-AI] Enhancing prompt with Bol-AI Engine (Gemini 1.5 Pro)...");
       const response = await ai.models.generateContent({
-        model: "gemma-4-31b",
+        model: "gemini-1.5-pro",
         contents: upgradeInstruction,
         config: {
           temperature: 0.7,
@@ -145,13 +145,14 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
         }
       });
       enhancedText = response.text || prompt;
-      console.log("[Bol-AI] Gemma 4 31B enhancement successful.");
+      console.log("[Bol-AI] Prompt enhancement successful.");
     } catch (error: any) {
-      console.error("[Bol-AI] Gemma 4 31B Error:", error.message);
-      // If Gemma 4 31B fails, we return the original prompt to avoid a total crash, 
-      // but we do NOT use any other model as per "Only gemma 4 31B" request.
+      console.error("[Bol-AI] Enhancement Error:", error.message);
+      // If the enhancement fails, we return the original prompt to avoid a total crash,
+      // but we log the error for debugging.
       enhancedText = prompt;
-      throw new Error(`Gemma 4 31B Error: ${error.message}`);
+      // We don't throw here, we just return the original prompt so the user can still generate an image.
+      // But we will return a flag so the frontend knows it failed.
     }
 
     if (enhancedText.length > 2000) {

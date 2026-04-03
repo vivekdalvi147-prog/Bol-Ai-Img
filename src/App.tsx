@@ -298,8 +298,9 @@ export default function App() {
       console.log("Request tracked with ID:", currentRequestId);
 
       if (isEnhanceEnabled && isBolAiEnhanceGlobalEnabled) {
-        console.log("Enhancing prompt...");
+        console.log("[Bol-AI] Initiating prompt enhancement...");
         setIsEnhancing(true);
+        setEnhancedPrompt(null); // Reset before new enhancement
         try {
           // Step 1: Enhance Prompt using Bol-AI Engine (via proxy)
           const enhanceRes = await fetch('/api/enhance-prompt', {
@@ -310,22 +311,31 @@ export default function App() {
 
           if (enhanceRes.ok) {
             const enhanceData = await enhanceRes.json();
-            if (enhanceData.enhancedPrompt) {
+            if (enhanceData.enhancedPrompt && enhanceData.enhancedPrompt !== originalUserPrompt) {
               finalPrompt = enhanceData.enhancedPrompt;
               setEnhancedPrompt(finalPrompt);
-              console.log("Prompt enhanced:", finalPrompt);
-              // Update request with enhanced prompt
+              setIsPromptExpanded(true); // Automatically expand to show the "big" prompt
+              console.log("[Bol-AI] Prompt successfully enhanced:", finalPrompt);
+              
+              // Update request with enhanced prompt in Firestore
               if (currentRequestId) {
                 await updateDoc(doc(db, 'requests', currentRequestId), {
                   enhancedPrompt: finalPrompt
                 });
               }
+              
+              // Give user a moment to see the "Enhancing" state and the result
+              await new Promise(r => setTimeout(r, 800));
+            } else {
+              console.warn("[Bol-AI] API returned no enhancement or same prompt.");
             }
           } else {
-            console.warn("Prompt enhancement failed, using original prompt.");
+            const errorData = await enhanceRes.json().catch(() => ({}));
+            console.warn("[Bol-AI] Prompt enhancement failed:", errorData.error || enhanceRes.statusText);
+            setShowToast("Enhancement failed, using original prompt.");
           }
         } catch (err) {
-          console.warn("Prompt enhancement error:", err);
+          console.warn("[Bol-AI] Prompt enhancement error:", err);
         } finally {
           setIsEnhancing(false);
         }
