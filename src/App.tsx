@@ -283,19 +283,30 @@ export default function App() {
     const startTime = Date.now();
 
     try {
-      // Track request in Firestore
+      // Track request in Firestore with a timeout so it doesn't block generation if offline
       console.log("Tracking request in Firestore...");
-      const reqRef = await addDoc(collection(db, 'requests'), {
-        userId: user ? user.uid : 'anonymous',
-        userEmail: user ? (user.email || user.providerData?.find(p => p.email)?.email || 'N/A') : 'anonymous',
-        userIp: userIp,
-        prompt: originalUserPrompt,
-        enhancedPrompt: (isEnhanceEnabled && isBolAiEnhanceGlobalEnabled) ? null : originalUserPrompt, // Will be updated if enhanced
-        status: 'active',
-        createdAt: serverTimestamp()
-      });
-      currentRequestId = reqRef.id;
-      console.log("Request tracked with ID:", currentRequestId);
+      try {
+        const reqPromise = addDoc(collection(db, 'requests'), {
+          userId: user ? user.uid : 'anonymous',
+          userEmail: user ? (user.email || user.providerData?.find(p => p.email)?.email || 'N/A') : 'anonymous',
+          userIp: userIp,
+          prompt: originalUserPrompt,
+          enhancedPrompt: (isEnhanceEnabled && isBolAiEnhanceGlobalEnabled) ? null : originalUserPrompt, // Will be updated if enhanced
+          status: 'active',
+          createdAt: serverTimestamp()
+        });
+
+        // 2 second timeout for Firestore tracking
+        const reqRef = await Promise.race([
+          reqPromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 2000))
+        ]) as any;
+
+        currentRequestId = reqRef.id;
+        console.log("Request tracked with ID:", currentRequestId);
+      } catch (fsError) {
+        console.warn("Firestore tracking failed or timed out, continuing without tracking:", fsError);
+      }
 
       if (isEnhanceEnabled && isBolAiEnhanceGlobalEnabled) {
         console.log("[Bol-AI] Initiating prompt enhancement...");
@@ -319,9 +330,9 @@ export default function App() {
               
               // Update request with enhanced prompt in Firestore
               if (currentRequestId) {
-                await updateDoc(doc(db, 'requests', currentRequestId), {
+                updateDoc(doc(db, 'requests', currentRequestId), {
                   enhancedPrompt: finalPrompt
-                });
+                }).catch(err => console.warn("Firestore update failed:", err));
               }
               
               // Give user a moment to see the "Enhancing" state and the result
@@ -439,14 +450,19 @@ export default function App() {
                 size: selectedSize,
                 createdAt: serverTimestamp()
               };
-              const docRef = await addDoc(collection(db, 'generations'), newGen);
-              console.log("Image saved to Firestore successfully!");
-              setLastGeneratedId(docRef.id);
+              
+              const newDocRef = doc(collection(db, 'generations'));
+              setLastGeneratedId(newDocRef.id);
               if (user) {
-                setMyImages(prev => [{ id: docRef.id, ...newGen }, ...prev]);
+                setMyImages(prev => [{ id: newDocRef.id, ...newGen }, ...prev]);
               }
+              
+              setDoc(newDocRef, newGen).catch(dbError => {
+                console.error("Failed to save to Firestore:", dbError);
+              });
+              console.log("Image saved to Firestore successfully!");
             } catch (dbError) {
-              console.error("Failed to save to Firestore:", dbError);
+              console.error("Failed to prepare Firestore save:", dbError);
             }
 
             if (!user) {
@@ -455,11 +471,11 @@ export default function App() {
 
             // Update request status to completed
             if (currentRequestId) {
-              await updateDoc(doc(db, 'requests', currentRequestId), {
+              updateDoc(doc(db, 'requests', currentRequestId), {
                 status: 'completed',
                 imageUrl: finalDisplayUrl,
                 durationMs: durationMs
-              });
+              }).catch(err => console.warn("Firestore update failed:", err));
             }
           } else {
             throw new Error("Bol-AI succeeded but returned no images.");

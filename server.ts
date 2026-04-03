@@ -25,7 +25,7 @@ console.log("--------------------------------");
 
 // Utility function for fetch with retries and timeout
 async function fetchWithRetry(url: string, options: any, retries = 1, delay = 500) {
-  const timeout = 8000; // 8 seconds timeout to stay within Vercel's 10s limit
+  const timeout = 60000; // 60 seconds timeout to prevent premature aborts
   
   for (let i = 0; i <= retries; i++) {
     const controller = new AbortController();
