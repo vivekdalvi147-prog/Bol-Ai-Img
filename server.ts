@@ -133,40 +133,25 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
 
     let enhancedText = prompt;
     try {
-      // User requested Gemma 4 31B, but it returned 404. 
-      // We will try it first, but fallback to gemini-1.5-flash which is extremely stable on Vercel.
-      console.log("[Bol-AI] Enhancing prompt with Gemma 4 31B...");
-      try {
-        const response = await ai.models.generateContent({
-          model: "gemma-4-31b",
-          contents: upgradeInstruction,
-          config: {
-            temperature: 0.7,
-            topP: 0.95,
-            topK: 40,
-            maxOutputTokens: 1024
-          }
-        });
-        enhancedText = response.text || prompt;
-        console.log("[Bol-AI] Gemma 4 31B enhancement successful.");
-      } catch (gemmaError: any) {
-        console.warn(`[Bol-AI] Gemma 4 31B failed (${gemmaError.message}), falling back to Gemini...`);
-        const fallbackResponse = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: upgradeInstruction,
-          config: {
-            temperature: 0.7,
-            topP: 0.95,
-            topK: 40,
-            maxOutputTokens: 1024
-          }
-        });
-        enhancedText = fallbackResponse.text || prompt;
-        console.log("[Bol-AI] Gemini 1.5 Flash enhancement successful.");
-      }
+      console.log("[Bol-AI] Enhancing prompt with Gemma 4 31B (Exclusive Mode)...");
+      const response = await ai.models.generateContent({
+        model: "gemma-4-31b",
+        contents: upgradeInstruction,
+        config: {
+          temperature: 0.7,
+          topP: 0.95,
+          topK: 40,
+          maxOutputTokens: 1024
+        }
+      });
+      enhancedText = response.text || prompt;
+      console.log("[Bol-AI] Gemma 4 31B enhancement successful.");
     } catch (error: any) {
-      console.error("[Bol-AI] Enhancement Engine Error:", error.message);
+      console.error("[Bol-AI] Gemma 4 31B Error:", error.message);
+      // If Gemma 4 31B fails, we return the original prompt to avoid a total crash, 
+      // but we do NOT use any other model as per "Only gemma 4 31B" request.
       enhancedText = prompt;
+      throw new Error(`Gemma 4 31B Error: ${error.message}`);
     }
 
     if (enhancedText.length > 2000) {
