@@ -572,20 +572,20 @@ export default function App() {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5" />
       </div>
 
-      <header className="container mx-auto px-6 py-8 flex justify-between items-center">
+      <header className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 flex justify-between items-center">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center gap-3 cursor-pointer"
           onClick={() => setActivePage('home')}
         >
-          <h1 className="text-2xl font-display font-bold tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight">
             BOL-<span className="text-neon-blue">AI</span>
           </h1>
         </motion.div>
 
-        <div className="flex items-center gap-4 md:gap-8">
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/60">
+        <div className="flex items-center gap-2 sm:gap-8">
+          <nav className="hidden lg:flex items-center gap-8 text-sm font-medium text-white/60">
             <button onClick={() => { setActiveTab('generator'); setActivePage('home'); }} className={`transition-colors ${activeTab === 'generator' && activePage === 'home' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>Generator</button>
             <button onClick={() => { setActiveTab('text-ai'); setActivePage('home'); }} className={`transition-colors ${activeTab === 'text-ai' && activePage === 'home' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>Text AI</button>
             <button onClick={() => { setActiveTab('gallery'); setActivePage('home'); }} className={`transition-colors ${activeTab === 'gallery' && activePage === 'home' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>Gallery</button>
@@ -601,7 +601,7 @@ export default function App() {
           >
             <button 
               onClick={() => setIsLoginSliderOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 group shadow-lg shadow-black/20"
+              className="flex items-center gap-2 px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 group shadow-lg shadow-black/20"
             >
               <div className="relative">
                 {user && user.photoURL ? (
@@ -612,10 +612,10 @@ export default function App() {
                   </div>
                 )}
               </div>
-              <span className="hidden sm:inline font-bold text-sm tracking-tight">{user ? user.displayName?.split(' ')[0] : 'Join Elite'}</span>
+              <span className="hidden sm:inline font-bold text-xs sm:text-sm tracking-tight">{user ? user.displayName?.split(' ')[0] : 'Join Elite'}</span>
             </button>
             <button onClick={() => setIsMenuOpen(true)} className="p-2 text-white/60 hover:text-white transition-colors active:scale-90">
-              <Menu className="w-6 h-6" />
+              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </motion.div>
         </div>
@@ -643,11 +643,11 @@ export default function App() {
             {/* Text AI Section */}
             {activeTab === 'text-ai' && (
               <>
-                <div className="max-w-4xl mx-auto text-center mb-12">
+                <div className="max-w-4xl mx-auto text-center mb-8 sm:mb-12">
                   <motion.h2 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-4xl md:text-6xl font-display font-bold mb-4 leading-tight"
+                    className="text-3xl sm:text-4xl md:text-6xl font-display font-bold mb-4 leading-tight"
                   >
                     Bol-AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">Intelligence</span>
                   </motion.h2>
@@ -655,7 +655,7 @@ export default function App() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="text-white/50 text-lg max-w-2xl mx-auto mb-8"
+                    className="text-white/50 text-sm sm:text-lg max-w-2xl mx-auto mb-6 sm:mb-8 px-4"
                   >
                     Chat with our most advanced text models for coding, creative writing, and problem solving.
                   </motion.p>
@@ -663,26 +663,18 @@ export default function App() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="flex flex-wrap justify-center gap-4 mb-12"
+                    className="flex justify-center gap-3 sm:gap-4 mb-8 sm:mb-12 px-4"
                   >
                     <button 
                       onClick={() => setActiveTab('generator')}
-                      className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
-                        activeTab === 'generator' 
-                          ? 'bg-neon-blue text-black shadow-[0_0_20px_rgba(0,255,255,0.4)]' 
-                          : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
-                      }`}
+                      className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-xs sm:text-base bg-white/5 text-white hover:bg-white/10 border border-white/10"
                     >
                       <ImageIcon className="w-4 h-4" />
                       <span>Image Gen</span>
                     </button>
                     <button 
                       onClick={() => setActiveTab('text-ai')}
-                      className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
-                        activeTab === 'text-ai' 
-                          ? 'bg-neon-purple text-white shadow-[0_0_20px_rgba(176,38,255,0.4)]' 
-                          : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
-                      }`}
+                      className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-xs sm:text-base bg-neon-purple text-white shadow-[0_0_20px_rgba(176,38,255,0.4)]"
                     >
                       <Cpu className="w-4 h-4" />
                       <span>Text AI Chat</span>
@@ -696,19 +688,19 @@ export default function App() {
             {/* Generator Section */}
             {activeTab === 'generator' && (
               <>
-                <div className="max-w-4xl mx-auto text-center mb-16">
+                <div className="max-w-4xl mx-auto text-center mb-8 sm:mb-16">
                   <motion.h2 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-5xl md:text-7xl font-display font-bold mb-6 leading-tight"
+                    className="text-3xl sm:text-5xl md:text-7xl font-display font-bold mb-4 sm:mb-6 leading-tight"
                   >
-                    Create Amazing <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">Images</span> With <br /> AI
+                    Create Amazing <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">Images</span> With <br className="hidden sm:block" /> AI
                   </motion.h2>
                   <motion.p 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="text-white/50 text-lg max-w-2xl mx-auto mb-8"
+                    className="text-white/50 text-sm sm:text-lg max-w-2xl mx-auto mb-6 sm:mb-8 px-4"
                   >
                     Type what you want to see, and our advanced AI will create it for you instantly.
                   </motion.p>
@@ -716,26 +708,18 @@ export default function App() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="flex flex-wrap justify-center gap-4 mb-12"
+                    className="flex justify-center gap-3 sm:gap-4 mb-8 sm:mb-12 px-4"
                   >
                     <button 
                       onClick={() => setActiveTab('generator')}
-                      className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
-                        activeTab === 'generator' 
-                          ? 'bg-neon-blue text-black shadow-[0_0_20px_rgba(0,255,255,0.4)]' 
-                          : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
-                      }`}
+                      className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-xs sm:text-base bg-neon-blue text-black shadow-[0_0_20px_rgba(0,255,255,0.4)]"
                     >
                       <ImageIcon className="w-4 h-4" />
                       <span>Image Gen</span>
                     </button>
                     <button 
                       onClick={() => setActiveTab('text-ai')}
-                      className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
-                        activeTab === 'text-ai' 
-                          ? 'bg-neon-purple text-white shadow-[0_0_20px_rgba(176,38,255,0.4)]' 
-                          : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
-                      }`}
+                      className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-xs sm:text-base bg-white/5 text-white hover:bg-white/10 border border-white/10"
                     >
                       <Cpu className="w-4 h-4" />
                       <span>Text AI Chat</span>

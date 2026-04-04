@@ -185,26 +185,26 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] max-w-5xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-6 glass p-5 rounded-3xl border-white/10 shadow-2xl">
+    <div className="flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-120px)] max-w-5xl mx-auto p-2 sm:p-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 glass p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-white/10 shadow-2xl gap-4 sm:gap-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-neon-blue/20 rounded-xl border border-neon-blue/30">
-            <BrainCircuit className="w-6 h-6 text-neon-blue" />
+            <BrainCircuit className="w-5 h-5 sm:w-6 sm:h-6 text-neon-blue" />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight">Bol-AI <span className="text-neon-blue">Chat</span></h2>
-            <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Powered by Gemini 3.1 Flash</p>
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight">Bol-AI <span className="text-neon-blue">Chat</span></h2>
+            <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/40 font-bold">Powered by Gemini 3.1 Flash</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
+        <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-bold text-white/60">System Online</span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-white/60">System Online</span>
           </div>
           <select 
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="bg-black/60 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-neon-blue transition-all hover:bg-black/80 cursor-pointer font-bold"
+            className="bg-black/60 border border-white/10 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs focus:outline-none focus:border-neon-blue transition-all hover:bg-black/80 cursor-pointer font-bold max-w-[150px] sm:max-w-none"
           >
             {models.map(m => (
               <option key={m.id} value={m.id}>{m.name}</option>
@@ -230,7 +230,7 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.1 }}
-              className="text-3xl font-bold mb-3"
+              className="text-2xl sm:text-3xl font-bold mb-3"
             >
               Welcome to <span className="text-neon-blue">Bol-AI</span>
             </motion.h3>
@@ -238,12 +238,12 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="text-white/50 max-w-md mb-10 text-lg leading-relaxed"
+              className="text-white/50 max-w-md mb-8 sm:mb-10 text-base sm:text-lg leading-relaxed"
             >
               Your intelligent companion for conversations, coding, and creative ideas.
             </motion.p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full max-w-2xl">
               {suggestedPrompts.map((prompt, idx) => (
                 <motion.button
                   key={idx}
@@ -251,12 +251,12 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + (idx * 0.1) }}
                   onClick={() => handleSuggestedPrompt(prompt.text)}
-                  className="flex items-center gap-4 p-5 glass rounded-2xl border-white/5 hover:border-neon-blue/30 hover:bg-white/5 transition-all text-left group"
+                  className="flex items-center gap-3 sm:gap-4 p-4 sm:p-5 glass rounded-2xl border-white/5 hover:border-neon-blue/30 hover:bg-white/5 transition-all text-left group"
                 >
-                  <div className="p-3 bg-white/5 rounded-xl group-hover:bg-neon-blue/20 transition-colors">
+                  <div className="p-2 sm:p-3 bg-white/5 rounded-xl group-hover:bg-neon-blue/20 transition-colors">
                     {prompt.icon}
                   </div>
-                  <span className="text-sm font-medium text-white/70 group-hover:text-white">{prompt.text}</span>
+                  <span className="text-xs sm:text-sm font-medium text-white/70 group-hover:text-white">{prompt.text}</span>
                 </motion.button>
               ))}
             </div>
@@ -310,14 +310,14 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
       </div>
 
       <form onSubmit={handleSubmit} className="relative group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-neon-blue to-neon-purple rounded-[2rem] blur opacity-20 group-focus-within:opacity-40 transition-opacity" />
-        <div className="relative glass rounded-[2rem] p-3 flex items-end gap-3 border-white/10 shadow-2xl backdrop-blur-3xl">
+        <div className="absolute -inset-1 bg-gradient-to-r from-neon-blue to-neon-purple rounded-[1.5rem] sm:rounded-[2rem] blur opacity-10 group-focus-within:opacity-30 transition-opacity" />
+        <div className="relative glass rounded-[1.5rem] sm:rounded-[2rem] p-2 sm:p-3 flex items-end gap-2 sm:gap-3 border-white/10 shadow-2xl backdrop-blur-3xl">
           <div className="flex gap-1 pb-1 pl-1">
-            <button type="button" className="p-3 hover:bg-white/10 rounded-2xl transition-all text-white/40 hover:text-white hover:scale-110" title="Upload Image">
-              <ImageIcon className="w-5 h-5" />
+            <button type="button" className="p-2 sm:p-3 hover:bg-white/10 rounded-xl sm:rounded-2xl transition-all text-white/40 hover:text-white hover:scale-110" title="Upload Image">
+              <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <button type="button" className="p-3 hover:bg-white/10 rounded-2xl transition-all text-white/40 hover:text-white hover:scale-110" title="Upload File">
-              <Paperclip className="w-5 h-5" />
+            <button type="button" className="p-2 sm:p-3 hover:bg-white/10 rounded-xl sm:rounded-2xl transition-all text-white/40 hover:text-white hover:scale-110" title="Upload File">
+              <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
           <textarea
@@ -329,19 +329,19 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
                 handleSubmit(e);
               }
             }}
-            placeholder="Type your message to Bol-AI..."
-            className="flex-1 bg-transparent border-none focus:ring-0 resize-none max-h-48 min-h-[56px] py-4 px-2 text-white placeholder-white/20 custom-scrollbar text-sm font-medium"
+            placeholder="Type message..."
+            className="flex-1 bg-transparent border-none focus:ring-0 resize-none max-h-32 sm:max-h-48 min-h-[44px] sm:min-h-[56px] py-3 sm:py-4 px-1 sm:px-2 text-white placeholder-white/20 custom-scrollbar text-xs sm:text-sm font-medium"
             rows={1}
           />
           <button 
             type="submit" 
             disabled={!input.trim() || isLoading}
-            className="p-4 bg-gradient-to-br from-neon-blue to-cyan-500 text-black rounded-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:scale-100 mb-1 mr-1 shadow-[0_0_20px_rgba(0,255,255,0.3)] group/btn"
+            className="p-3 sm:p-4 bg-gradient-to-br from-neon-blue to-cyan-500 text-black rounded-xl sm:rounded-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:scale-100 mb-1 mr-1 shadow-[0_0_20px_rgba(0,255,255,0.3)] group/btn"
           >
-            <Send className="w-6 h-6 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+            <Send className="w-5 h-5 sm:w-6 sm:h-6 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
           </button>
         </div>
-        <p className="text-[9px] text-center mt-3 text-white/20 font-bold uppercase tracking-[0.2em]">
+        <p className="text-[8px] sm:text-[9px] text-center mt-2 sm:mt-3 text-white/20 font-bold uppercase tracking-[0.2em]">
           Bol-AI can make mistakes. Verify important information.
         </p>
       </form>
