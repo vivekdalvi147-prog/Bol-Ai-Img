@@ -112,16 +112,15 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-    const rawApiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI || process.env.GEMINI_API_KEY;
+    const apiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI || process.env.GEMINI_API_KEY;
 
-    if (!rawApiKey || rawApiKey.includes('TODO') || rawApiKey.length < 10) {
+    if (!apiKey) {
       console.error("[Bol-AI] Enhance Error: Invalid API Key configuration");
       return res.status(400).json({ 
-        error: "API Key is missing or invalid. Please add BOL_AI_API_KEY in AI Studio Secrets." 
+        error: "API Key is missing. Please ensure BOL_AI_API_KEY or GEMINI_API_KEY is set." 
       });
     }
 
-    const apiKey = rawApiKey.trim();
     const ai = new GoogleGenAI({ apiKey });
     
     const upgradeInstruction = `You are BOL-AI, a master image prompt engineer. Transform this basic idea into a legendary, hyper-detailed, and visually breathtaking image generation prompt.
@@ -129,10 +128,12 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
     INPUT: "${prompt}"
     
     DIRECTIONS:
-    - Expand significantly with artistic details, lighting, and camera settings.
-    - Use high-impact terms like 'hyper-realistic', '8k', 'unreal engine 5'.
+    - Expand significantly with artistic details, lighting, camera settings, and atmosphere.
+    - Add unique, creative elements to make the image stand out. Do not just repeat the input.
+    - Use high-impact terms like 'hyper-realistic', '8k', 'unreal engine 5', 'cinematic lighting', 'intricate details'.
+    - Ensure the output is DIFFERENT and MORE CREATIVE every time, even if the input is the same. Add random but fitting stylistic choices (e.g., cyberpunk, fantasy, photorealistic, watercolor) if none is specified.
     - Return ONLY the upgraded prompt text. No chatter.
-    - Keep it concise but detailed (max 100 words).`;
+    - Keep it detailed but under 1990 characters.`;
 
     let enhancedText = prompt;
     try {
@@ -141,20 +142,25 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
         model: "gemma-3-27b-it",
         contents: upgradeInstruction,
         config: {
-          temperature: 0.7,
+          temperature: 0.9,
           topP: 0.95,
           topK: 40,
-          maxOutputTokens: 250
+          maxOutputTokens: 500
         }
       });
       enhancedText = response.text || prompt;
       console.log("[Bol-AI] Prompt enhancement successful.");
       
-      if (enhancedText.length > 2000) {
-        enhancedText = enhancedText.substring(0, 2000);
+      if (enhancedText.length > 1990) {
+        enhancedText = enhancedText.substring(0, 1990);
       }
 
-      res.json({ enhancedPrompt: enhancedText });
+      let tokens = 0;
+      if (response.usageMetadata) {
+        tokens = response.usageMetadata.totalTokenCount || 0;
+      }
+
+      res.json({ enhancedPrompt: enhancedText, tokens: tokens });
     } catch (error: any) {
       console.error("[Bol-AI] Enhancement Error:", error.message);
       // Return the error to the frontend so it can show a toast and gracefully fallback
@@ -169,20 +175,18 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
 // API Route for Text AI Chat
 app.post("/api/chat", async (req, res) => {
   try {
-    const { message, model, systemInstruction, history } = req.body;
+    const { message, parts, model, systemInstruction, history } = req.body;
     
-    // Prioritize BOL_AI_API_KEY, fallback to GEMINI_API_KEY
-    const rawApiKey = process.env.BOL_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI;
+    const apiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI || process.env.GEMINI_API_KEY;
     
     // Validate API Key
-    if (!rawApiKey || rawApiKey.includes('TODO') || rawApiKey.length < 10) {
+    if (!apiKey) {
       console.error("[Bol-AI] Chat Error: Invalid API Key configuration");
       return res.status(400).json({ 
-        error: "Bol-AI API Key is missing or invalid. Please add BOL_AI_API_KEY in AI Studio Secrets." 
+        error: "API Key is missing. Please ensure BOL_AI_API_KEY or GEMINI_API_KEY is set." 
       });
     }
 
-    const apiKey = rawApiKey.trim();
     const ai = new GoogleGenAI({ apiKey });
     
     // Format history for Bol-AI
@@ -191,25 +195,33 @@ app.post("/api/chat", async (req, res) => {
       for (const msg of history) {
         contents.push({
           role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: msg.parts
+          parts: msg.parts || [{ text: msg.content }]
         });
       }
     }
     
+    const userParts = parts || [{ text: message }];
     contents.push({
       role: 'user',
-      parts: [{ text: message }]
+      parts: userParts
     });
 
-    const response = await ai.models.generateContent({
-      model: model || 'gemini-3.1-flash-lite-preview',
-      contents: contents,
-      config: {
-        systemInstruction: systemInstruction || "You are Bol-AI, a helpful assistant.",
-        // Enable thinking if supported by the model (Bol-AI 3 series)
-        // Only use HIGH for pro models, use default for others
-        thinkingConfig: model?.includes('pro') ? { thinkingLevel: ThinkingLevel.HIGH } : undefined,
+    const isGemini = !model || model.includes('gemini');
+    
+    const config: any = {};
+    
+    if (isGemini) {
+      config.systemInstruction = systemInstruction || "You are Bol-AI, a helpful assistant.";
+      if (model?.includes('pro')) {
+        config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
       }
+      config.tools = [{ googleSearch: {} }];
+    }
+
+    const response = await ai.models.generateContent({
+      model: model || 'gemini-3.1-flash-preview',
+      contents: contents,
+      config: config
     });
 
     let text = response.text;
@@ -278,8 +290,9 @@ app.post("/api/generate", rateLimiter, async (req, res) => {
   try {
     const { prompt, size } = req.body;
     let userPrompt = prompt || "A golden cat";
-    if (userPrompt.length > 2000) {
-      userPrompt = userPrompt.substring(0, 2000);
+    // ModelScope typically has a limit around 1000 characters for prompts
+    if (userPrompt.length > 1000) {
+      userPrompt = userPrompt.substring(0, 1000);
     }
     const imageSize = size || "1024*1024";
     const apiKey = process.env.MODELSCOPE_API_KEY || process.env.VIVEK_AI_BOL_IMG;

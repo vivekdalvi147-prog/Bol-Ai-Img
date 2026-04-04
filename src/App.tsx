@@ -31,7 +31,8 @@ export default function App() {
   const [lastGeneratedId, setLastGeneratedId] = useState<string | null>(null);
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const [enhancedPrompt, setEnhancedPrompt] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState(() => localStorage.getItem('bol_ai_size') || "1024*1024");
+  const [tokensUsed, setTokensUsed] = useState<number | null>(null);
+  const [selectedSize, setSelectedSize] = useState(() => localStorage.getItem('bol_ai_size') || "720*1280");
   const [quality, setQuality] = useState(() => localStorage.getItem('bol_ai_quality') || 'standard');
   const [isEnhanceEnabled, setIsEnhanceEnabled] = useState(() => localStorage.getItem('bol_ai_enhance') === 'false' ? false : true);
   const [generatedSize, setGeneratedSize] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export default function App() {
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
+  const [isUiMode, setIsUiMode] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -325,6 +327,9 @@ export default function App() {
     setIsPromptExpanded(false);
 
     let finalPrompt = prompt;
+    if (isUiMode) {
+      finalPrompt = `UI/UX Design, professional, modern, clean interface, high quality, dribbble style, behance style, ${prompt}`;
+    }
     const originalUserPrompt = prompt;
     let currentRequestId: string | null = null;
     const startTime = Date.now();
@@ -372,6 +377,9 @@ export default function App() {
             if (enhanceData.enhancedPrompt && enhanceData.enhancedPrompt !== originalUserPrompt) {
               finalPrompt = enhanceData.enhancedPrompt;
               setEnhancedPrompt(finalPrompt);
+              if (enhanceData.tokens) {
+                setTokensUsed(enhanceData.tokens);
+              }
               setIsPromptExpanded(true); // Automatically expand to show the "big" prompt
               console.log("[Bol-AI] Prompt successfully enhanced:", finalPrompt);
               
@@ -643,7 +651,7 @@ export default function App() {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5" />
       </div>
 
-      <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5 backdrop-blur-2xl">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-black/95 border-b border-white/5">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <button 
             onClick={() => setIsMenuOpen(true)}
@@ -659,6 +667,15 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-3">
+            {activeTab === 'text-ai' && (
+              <button 
+                onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat-history'))}
+                className="p-2 hover:bg-white/5 rounded-xl transition-all text-white/70 hover:text-white"
+                title="Chat History"
+              >
+                <Save className="w-5 h-5" />
+              </button>
+            )}
             <button 
               onClick={() => setIsProfileOpen(true)}
               className="flex items-center gap-2 p-1 pr-3 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-all group"
@@ -699,7 +716,7 @@ export default function App() {
 
             {/* Text AI Section */}
             {activeTab === 'text-ai' && (
-              <div className="max-w-4xl mx-auto">
+              <div className="max-w-7xl mx-auto w-full px-2 sm:px-6">
                 <TextAI />
               </div>
             )}
@@ -711,31 +728,6 @@ export default function App() {
           
           {/* Controls: Size Selector & Quality & Enhance Toggle */}
           <div className="flex flex-col gap-5 mb-8 max-w-md mx-auto">
-            {/* Size Selector */}
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold ml-2">Aspect Ratio</span>
-              <div className="flex gap-2 bg-black/40 p-1.5 rounded-[1.5rem] border border-white/5 shadow-2xl overflow-x-auto scrollbar-hide backdrop-blur-xl">
-                {[
-                  { label: "1:1", value: "1024*1024" },
-                  { label: "16:9", value: "1280*720" },
-                  { label: "9:16", value: "720*1280" }
-                ].map((size) => (
-                  <button
-                    key={size.value}
-                    onClick={() => setSelectedSize(size.value)}
-                    className={`flex-1 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap ${
-                      selectedSize === size.value 
-                        ? 'bg-gradient-to-br from-neon-blue to-cyan-500 text-black shadow-[0_0_25px_rgba(0,255,255,0.5)] scale-[1.02]' 
-                        : 'text-white/40 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <Maximize className="w-3.5 h-3.5 shrink-0" />
-                    <span>{size.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Quality Selector */}
             <div className="flex flex-col gap-2">
               <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold ml-2">Render Quality</span>
@@ -816,25 +808,16 @@ export default function App() {
                 </button>
               </div>
             )}
-          </div>
 
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black via-black/90 to-transparent pt-12">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative group max-w-4xl mx-auto w-full pb-8 px-4"
-            >
-              <div className="relative bg-[#0a0c10] rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 border border-white/10 shadow-2xl backdrop-blur-xl">
-                <div className="pl-4">
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-neon-blue" />
-                </div>
+            {/* Prompt Input Section */}
+            <div className="mt-4">
+              <div className={`relative bg-[#0a0c10] rounded-[2rem] p-4 border shadow-2xl backdrop-blur-xl flex flex-col gap-4 transition-all duration-300 ${isUiMode ? 'border-neon-blue/50 shadow-[0_0_30px_rgba(0,240,255,0.15)]' : 'border-white/10'}`}>
                 
-                <input
-                  type="text"
+                <textarea
                   value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Describe what you want to see..."
-                  className="flex-1 bg-transparent border-none focus:ring-0 py-2 sm:py-3 px-1 sm:px-2 text-white placeholder-white/20 text-xs sm:text-sm font-medium"
+                  onChange={(e) => setPrompt(e.target.value.substring(0, 1990))}
+                  placeholder={isUiMode ? "Describe your UI/UX design idea..." : "Make ai img..."}
+                  className="w-full bg-transparent border-none focus:ring-0 focus:outline-none outline-none text-white placeholder-white/40 text-sm sm:text-base font-medium resize-none h-24 custom-scrollbar"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -842,22 +825,78 @@ export default function App() {
                     }
                   }}
                   disabled={isEnhancing || isGenerating}
+                  maxLength={1990}
                 />
 
-                <div className="flex items-center gap-1 pr-1">
-                  <button 
-                    onClick={handleGenerate}
-                    disabled={!prompt.trim() || isGenerating || isEnhancing || maintenanceMode === 1}
-                    className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 shadow-[0_0_15px_rgba(0,240,255,0.4)] flex items-center justify-center ${
-                      prompt.trim() ? 'bg-neon-blue text-black' : 'bg-white/10 text-white/40'
-                    }`}
-                  >
-                    {isGenerating ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Send className="w-4 h-4 sm:w-5 sm:h-5" />}
-                  </button>
+                <div className="flex justify-end">
+                  <span className="text-[10px] text-white/30 font-mono">{prompt.length}/1990</span>
                 </div>
+
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-2 relative">
+                    <button 
+                      onClick={() => setIsUiMode(!isUiMode)}
+                      className={`p-3 rounded-xl transition-colors ${isUiMode ? 'bg-neon-blue/20 text-neon-blue' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}
+                      title="Toggle UI/UX Design Mode"
+                    >
+                      <LayoutGrid className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveTooltip(activeTooltip === 'ui-mode' ? null : 'ui-mode');
+                      }}
+                      className={`p-3 rounded-xl transition-colors ${activeTooltip === 'ui-mode' ? 'bg-neon-blue/20 text-neon-blue' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}
+                      title="What is UI Mode?"
+                    >
+                      <Info className="w-5 h-5" />
+                    </button>
+                    
+                    <AnimatePresence>
+                      {activeTooltip === 'ui-mode' && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute bottom-full left-0 mb-4 w-64 p-4 bg-black/95 border border-white/10 rounded-2xl text-xs text-white/70 leading-relaxed z-[100] backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-t-neon-blue/30"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-neon-blue animate-pulse" />
+                            <p className="font-bold text-neon-blue uppercase tracking-widest text-[10px]">UI/UX Mode</p>
+                          </div>
+                          <p className="mb-2">Optimizes generation for website and app interfaces.</p>
+                          <p className="text-[10px] italic text-white/40">Automatically applies professional design keywords to your prompt.</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleGenerate}
+                  disabled={!prompt.trim() || isGenerating || isEnhancing || maintenanceMode === 1}
+                  className={`w-full py-4 rounded-2xl font-bold text-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                    prompt.trim() 
+                      ? 'bg-gradient-to-r from-cyan-400 to-purple-500 text-white shadow-[0_0_30px_rgba(0,240,255,0.3)]' 
+                      : 'bg-white/5 text-white/30'
+                  }`}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" /> Generating...
+                    </>
+                  ) : (
+                    <>
+                      Generate <Send className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
               </div>
-            </motion.div>
+            </div>
           </div>
+
+
 
           {/* Maintenance Mode Warning */}
           <AnimatePresence>
@@ -890,6 +929,7 @@ export default function App() {
                   <div className="flex items-center gap-3 text-neon-purple font-bold text-base md:text-lg">
                     <Cpu className="w-6 h-6 group-hover:animate-pulse" />
                     <span>Prompt Upgraded by Bol-AI</span>
+                    {tokensUsed && <span className="text-xs bg-neon-purple/20 px-2 py-1 rounded-lg">{tokensUsed} Tokens</span>}
                   </div>
                   <motion.div animate={{ rotate: isPromptExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}>
                     <ChevronDown className="w-6 h-6 text-neon-purple" />

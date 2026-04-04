@@ -71,3 +71,48 @@ body {
   backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+/* KaTeX Styling */
+.katex-display {
+  margin: 1.5em 0 !important;
+  padding: 1.5rem !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-radius: 1rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+.katex {
+  font-size: 1.1em !important;
+  color: var(--color-neon-blue) !important;
+}
+
+/* Prose overrides */
+.prose {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.prose strong {
+  color: var(--color-neon-blue) !important;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  color: white !important;
+  font-family: var(--font-display) !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.prose p {
+  margin-bottom: 0.75rem !important;
+}
+
+.prose ul, .prose ol {
+  margin-bottom: 0.75rem !important;
+  padding-left: 1.25rem !important;
+}
+
+.prose li {
+  margin-bottom: 0.25rem !important;
+}
