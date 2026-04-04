@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import "dotenv/config";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 
 console.log(`[Bol-AI] Server initializing at ${new Date().toISOString()}`);
@@ -18,6 +19,8 @@ console.log("--- Bol-AI Environment Check ---");
 console.log("VERCEL Environment:", !!process.env.VERCEL);
 console.log("NODE_ENV:", process.env.NODE_ENV);
 console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? "SET" : "MISSING");
+console.log("TXT_MODEL_VIVEK_BOL_AI:", process.env.TXT_MODEL_VIVEK_BOL_AI ? "SET" : "MISSING");
+console.log("BOL_AI_API_KEY:", process.env.BOL_AI_API_KEY ? "SET" : "MISSING");
 console.log("MODELSCOPE_API_KEY:", process.env.MODELSCOPE_API_KEY ? "SET" : "MISSING");
 console.log("VIVEK_AI_BOL_IMG:", process.env.VIVEK_AI_BOL_IMG ? "SET" : "MISSING");
 console.log("IMG_VIVEKAPP_AI:", process.env.IMG_VIVEKAPP_AI ? "SET" : "MISSING");
@@ -112,12 +115,12 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-    const apiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI || process.env.GEMINI_API_KEY;
+    const apiKey = process.env.TXT_MODEL_VIVEK_BOL_AI || process.env.BOL_AI_API_KEY || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       console.error("[Bol-AI] Enhance Error: Invalid API Key configuration");
       return res.status(400).json({ 
-        error: "API Key is missing. Please ensure BOL_AI_API_KEY or GEMINI_API_KEY is set." 
+        error: "API Key is missing. Please ensure TXT_MODEL_VIVEK_BOL_AI or GEMINI_API_KEY is set." 
       });
     }
 
@@ -137,9 +140,9 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
 
     let enhancedText = prompt;
     try {
-      console.log("[Bol-AI] Enhancing prompt with Bol-AI Engine (Gemma 3 27B)...");
+      console.log("[Bol-AI] Enhancing prompt with Bol-AI Engine (Gemini 3.1 Flash Lite)...");
       const response = await ai.models.generateContent({
-        model: "gemma-3-27b-it",
+        model: "gemini-3.1-flash-lite-preview",
         contents: upgradeInstruction,
         config: {
           temperature: 0.9,
@@ -177,15 +180,18 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { message, parts, model, systemInstruction, history } = req.body;
     
-    const apiKey = process.env.BOL_AI_API_KEY || process.env.TXT_MODEL_VIVEK_BOL_AI || process.env.GEMINI_API_KEY;
+    const apiKey = process.env.TXT_MODEL_VIVEK_BOL_AI || process.env.BOL_AI_API_KEY || process.env.GEMINI_API_KEY;
     
     // Validate API Key
     if (!apiKey) {
       console.error("[Bol-AI] Chat Error: Invalid API Key configuration");
       return res.status(400).json({ 
-        error: "API Key is missing. Please ensure BOL_AI_API_KEY or GEMINI_API_KEY is set." 
+        error: "API Key is missing. Please ensure TXT_MODEL_VIVEK_BOL_AI or GEMINI_API_KEY is set." 
       });
     }
+
+    const modelToUse = model || 'gemini-3.1-flash-lite-preview';
+    console.log(`[Bol-AI] Chat request received. Model: ${modelToUse}, Message length: ${message?.length || 0}`);
 
     const ai = new GoogleGenAI({ apiKey });
     
@@ -206,23 +212,48 @@ app.post("/api/chat", async (req, res) => {
       parts: userParts
     });
 
-    const isGemini = !model || model.includes('gemini');
+    const isGemini = !modelToUse || modelToUse.includes('gemini');
     
     const config: any = {};
     
     if (isGemini) {
       config.systemInstruction = systemInstruction || "You are Bol-AI, a helpful assistant.";
-      if (model?.includes('pro')) {
+      config.maxOutputTokens = 8192; // Set a reasonable limit to avoid default constraints
+      if (modelToUse.includes('pro')) {
         config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
       }
-      config.tools = [{ googleSearch: {} }];
+      // Removed googleSearch to ensure maximum compatibility with gemini-3.1-flash-lite-preview
     }
 
-    const response = await ai.models.generateContent({
-      model: model || 'gemini-3.1-flash-lite-preview',
-      contents: contents,
-      config: config
-    });
+    let response;
+    let retries = 3;
+    let lastError;
+
+    for (let i = 0; i < retries; i++) {
+      try {
+        console.log(`[Bol-AI] Attempt ${i + 1} to generate content with ${modelToUse}...`);
+        response = await ai.models.generateContent({
+          model: modelToUse,
+          contents: contents,
+          config: config
+        });
+        console.log(`[Bol-AI] Generation successful on attempt ${i + 1}`);
+        break; // Success!
+      } catch (error: any) {
+        lastError = error;
+        const isQuotaError = error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED');
+        
+        if (isQuotaError && i < retries - 1) {
+          const waitTime = Math.pow(2, i) * 1000 + Math.random() * 1000;
+          console.warn(`[Bol-AI] Quota hit (429). Retrying in ${Math.round(waitTime)}ms... (Attempt ${i + 1}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+        throw error; // Re-throw if not a quota error or last attempt
+      }
+    }
+
+    if (!response) throw lastError || new Error("Failed to generate content");
 
     let text = response.text;
     

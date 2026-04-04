@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Bot, User, Sparkles, BrainCircuit, Image as ImageIcon, FileText, Video, Paperclip, X, Wand2, Mic, Copy, Check, Download, ExternalLink, Save } from 'lucide-react';
+import { Send, Loader2, Bot, User, Sparkles, BrainCircuit, Image as ImageIcon, FileText, Video, Paperclip, X, Wand2, Copy, Check, Download, ExternalLink, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, addDoc, serverTimestamp, query, orderBy, getDocs, onSnapshot, limit } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
@@ -324,12 +324,21 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
         createdAt: serverTimestamp()
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat error:", error);
+      
+      let errorMessage = "Sorry, I encountered an error processing your request. Please try again.";
+      
+      if (error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+        errorMessage = "Bol-AI is currently experiencing high demand (Quota Exceeded). Please wait a few seconds and try again.";
+      } else if (error.message?.includes('API Key is missing')) {
+        errorMessage = "API Key is missing. Please configure BOL_AI_API_KEY or GEMINI_API_KEY in AI Studio Secrets.";
+      }
+
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
-        content: "Sorry, I encountered an error processing your request. Please try again.",
+        content: errorMessage,
         timestamp: new Date()
       }]);
       setIsLoading(false);
@@ -407,13 +416,13 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
               key={msg.id} 
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[98%] md:max-w-[85%] rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-5 shadow-2xl relative ${
+              <div className={`max-w-[95%] md:max-w-[80%] rounded-2xl sm:rounded-3xl p-2.5 sm:p-4 shadow-xl relative ${
                 msg.role === 'user' 
                   ? 'bg-gradient-to-br from-neon-blue/20 to-cyan-600/10 border border-neon-blue/30 text-white' 
                   : 'glass border-white/10'
               }`}>
-                <div className="flex items-center gap-2 mb-4 opacity-50 text-[10px] font-bold uppercase tracking-widest">
-                  {msg.role === 'user' ? <User className="w-3 h-3" /> : <Bot className="w-3 h-3 text-neon-blue" />}
+                <div className="flex items-center gap-2 mb-2 opacity-50 text-[9px] font-bold uppercase tracking-widest">
+                  {msg.role === 'user' ? <User className="w-2.5 h-2.5" /> : <Bot className="w-2.5 h-2.5 text-neon-blue" />}
                   <span>{msg.role === 'user' ? 'You' : msg.model || 'Bol-AI'}</span>
                 </div>
 
@@ -449,7 +458,7 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
                   </div>
                 )}
                 
-                <div className="prose prose-sm prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent prose-code:text-neon-blue prose-code:bg-neon-blue/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+                <div className="prose prose-xs prose-invert max-w-none prose-p:leading-snug prose-pre:p-0 prose-pre:bg-transparent prose-code:text-neon-blue prose-code:bg-neon-blue/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none text-xs sm:text-sm">
                   <ReactMarkdown
                     remarkPlugins={[remarkMath]}
                     rehypePlugins={[rehypeKatex]}
@@ -526,9 +535,9 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
               </button>
             </div>
           )}
-          <div className="relative bg-[#0a0c10] rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 border border-white/10 shadow-2xl backdrop-blur-xl group-focus-within:border-neon-blue/50 transition-all duration-500">
-            <div className="pl-4">
-              <Sparkles className="w-5 h-5 text-neon-blue group-focus-within:animate-pulse" />
+          <div className="relative bg-[#0a0c10] rounded-full p-1 sm:p-2 flex items-center gap-1 sm:gap-2 border border-white/10 shadow-2xl backdrop-blur-xl group-focus-within:border-neon-blue/50 transition-all duration-500">
+            <div className="pl-3 sm:pl-4">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-neon-blue group-focus-within:animate-pulse" />
             </div>
             
             <input
@@ -536,10 +545,10 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Message Bol-AI..."
-              className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 py-3 sm:py-4 px-2 sm:px-4 text-white placeholder-white/20 text-sm sm:text-base font-medium"
+              className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 py-2.5 sm:py-4 px-1 sm:px-4 text-white placeholder-white/20 text-xs sm:text-base font-medium"
             />
 
-            <div className="flex items-center gap-1 pr-1 shrink-0">
+            <div className="flex items-center gap-0.5 sm:gap-1 pr-1 shrink-0">
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -576,11 +585,11 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
               <button 
                 type="submit" 
                 disabled={isLoading || (!input.trim() && !selectedFile)}
-                className={`ml-1 p-3 sm:p-4 rounded-full transition-all active:scale-95 shadow-[0_0_20px_rgba(0,240,255,0.4)] flex items-center justify-center ${
+                className={`ml-1 p-2.5 sm:p-4 rounded-full transition-all active:scale-95 shadow-[0_0_20px_rgba(0,240,255,0.4)] flex items-center justify-center shrink-0 ${
                   (input.trim() || selectedFile) ? 'bg-neon-blue text-black' : 'bg-white/10 text-white/40'
                 }`}
               >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                {isLoading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Send className="w-4 h-4 sm:w-5 sm:h-5" />}
               </button>
             </div>
           </div>

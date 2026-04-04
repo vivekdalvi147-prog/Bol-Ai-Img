@@ -17,18 +17,18 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Prompt is required"}).encode())
             return
 
-        api_key = os.environ.get("BOL_AI_API_KEY") or os.environ.get("TXT_MODEL_VIVEK_BOL_AI") or os.environ.get("GEMINI_API_KEY")
+        api_key = os.environ.get("TXT_MODEL_VIVEK_BOL_AI") or os.environ.get("BOL_AI_API_KEY") or os.environ.get("GEMINI_API_KEY")
         if not api_key:
             self.send_response(400)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"error": "API Key missing"}).encode())
+            self.wfile.write(json.dumps({"error": "API Key missing (TXT_MODEL_VIVEK_BOL_AI)"}).encode())
             return
 
         genai.configure(api_key=api_key)
         
-        # User strictly requested Gemma 3 27B IT (gemma-3-27b-it)
-        model_name = "gemma-3-27b-it"
+        # User strictly requested Gemini 3.1 Flash Lite Preview (gemini-3.1-flash-lite-preview)
+        model_name = "gemini-3.1-flash-lite-preview"
         
         upgrade_instruction = f"""You are BOL-AI, a master image prompt engineer. Transform this basic idea into a legendary, hyper-detailed, and visually breathtaking image generation prompt.
         
@@ -48,7 +48,7 @@ class handler(BaseHTTPRequestHandler):
                     temperature=0.7,
                     top_p=0.95,
                     top_k=40,
-                    max_output_tokens=2000
+                    max_output_tokens=500
                 )
             )
             
