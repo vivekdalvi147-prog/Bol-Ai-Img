@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, ImagePlus } from 'lucide-react';
+import { Sparkles, Image as ImageIcon, Download, Send, Loader2, Info, LayoutGrid, ChevronLeft, ChevronRight, Maximize, Cpu, ChevronDown, Wand2, UserCircle, LogOut, X, Menu, Trash2, Share2, AlertTriangle, Zap, ShieldCheck, Mail, ImagePlus, Save, Settings, Paperclip } from 'lucide-react';
 import { auth, googleProvider, db } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, deleteDoc, doc, getDoc, orderBy, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
@@ -37,6 +37,7 @@ export default function App() {
   const [generatedSize, setGeneratedSize] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,10 +45,9 @@ export default function App() {
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
-  const [isUiMode, setIsUiMode] = useState(() => localStorage.getItem('bol_ai_ui_mode') === 'true');
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoginSliderOpen, setIsLoginSliderOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'generator' | 'gallery' | 'my-creations' | 'text-ai' | 'admin'>('generator');
@@ -106,6 +106,7 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setIsAuthLoading(false);
       if (currentUser) {
         // Track user login in Firestore for Admin Panel
         setDoc(doc(db, 'users', currentUser.uid), {
@@ -200,10 +201,6 @@ export default function App() {
     localStorage.setItem('bol_ai_enhance', isEnhanceEnabled.toString());
   }, [isEnhanceEnabled]);
 
-  useEffect(() => {
-    localStorage.setItem('bol_ai_ui_mode', isUiMode.toString());
-  }, [isUiMode]);
-
   const nextGalleryImage = () => setGalleryIndex((prev) => (prev + 1) % exampleImages.length);
   const prevGalleryImage = () => setGalleryIndex((prev) => (prev - 1 + exampleImages.length) % exampleImages.length);
 
@@ -294,8 +291,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isGenerating]);
 
-  const UI_DESIGN_PROMPT_PREFIX = "Professional UI/UX design, high-quality user interface, modern web layout, clean digital components, sleek app design, 4k resolution, highly detailed, professional color palette, ";
-
   const handleGenerate = async () => {
     if (isGenerating || isEnhancing) return;
     
@@ -316,7 +311,7 @@ export default function App() {
     }
 
     if (!user) {
-      setIsLoginSliderOpen(true);
+      setIsProfileOpen(true);
       setIsGenerating(false);
       return;
     }
@@ -329,7 +324,7 @@ export default function App() {
     setEnhancedPrompt(null);
     setIsPromptExpanded(false);
 
-    let finalPrompt = isUiMode ? `${UI_DESIGN_PROMPT_PREFIX}${prompt}` : prompt;
+    let finalPrompt = prompt;
     const originalUserPrompt = prompt;
     let currentRequestId: string | null = null;
     const startTime = Date.now();
@@ -563,6 +558,82 @@ export default function App() {
     }
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-neon-blue/20 border-t-neon-blue rounded-full animate-spin" />
+          <p className="text-neon-blue font-bold tracking-widest animate-pulse">BOL-AI INITIALIZING...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-black relative overflow-hidden flex items-center justify-center p-4">
+        {/* Background Elements */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-blue/10 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-neon-purple/10 blur-[120px] rounded-full" />
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md w-full glass p-8 rounded-[2.5rem] border-white/10 shadow-2xl relative z-10 text-center"
+        >
+          <div className="w-20 h-20 bg-gradient-to-br from-neon-blue via-neon-purple to-neon-blue rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(0,255,255,0.3)] mb-8 mx-auto animate-pulse">
+            <Sparkles className="text-white w-10 h-10" />
+          </div>
+          
+          <h2 className="text-4xl font-display font-bold tracking-tighter mb-2">
+            BOL-<span className="text-neon-blue">AI</span>
+          </h2>
+          <p className="text-[10px] text-neon-purple font-bold tracking-[0.2em] uppercase mb-8">Next-Gen Image Engine</p>
+          
+          <p className="text-white/60 mb-10 text-sm leading-relaxed">
+            Welcome to the future of creativity. Log in to unlock unlimited 8K image generation and save your masterpieces to the cloud.
+          </p>
+          
+          <button 
+            onClick={async () => {
+              setLoginError(null);
+              try {
+                await signInWithPopup(auth, googleProvider);
+              } catch (error: any) {
+                if (error.code === 'auth/popup-closed-by-user') {
+                  setLoginError("Login was cancelled. Please try again.");
+                } else if (error.code === 'auth/popup-blocked') {
+                  setLoginError("Login popup was blocked. Please allow popups for this site.");
+                } else {
+                  setLoginError("Login failed: " + error.message);
+                }
+              }
+            }}
+            className="w-full py-4 px-6 rounded-2xl bg-white text-black font-bold flex items-center justify-center gap-3 hover:scale-[1.02] transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-95"
+          >
+            <svg className="w-6 h-6" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Continue with Google
+          </button>
+          
+          {loginError && (
+            <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center animate-shake">
+              {loginError}
+            </div>
+          )}
+          
+          <p className="text-white/30 mt-8 text-[10px] italic">
+            By continuing, you agree to our Terms of Service and Privacy Policy.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen font-sans selection:bg-neon-blue/30">
       {/* Background Elements */}
@@ -572,56 +643,42 @@ export default function App() {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5" />
       </div>
 
-      <header className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 flex justify-between items-center">
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="flex items-center gap-3 cursor-pointer"
-          onClick={() => setActivePage('home')}
-        >
-          <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight">
-            BOL-<span className="text-neon-blue">AI</span>
-          </h1>
-        </motion.div>
-
-        <div className="flex items-center gap-2 sm:gap-8">
-          <nav className="hidden lg:flex items-center gap-8 text-sm font-medium text-white/60">
-            <button onClick={() => { setActiveTab('generator'); setActivePage('home'); }} className={`transition-colors ${activeTab === 'generator' && activePage === 'home' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>Generator</button>
-            <button onClick={() => { setActiveTab('text-ai'); setActivePage('home'); }} className={`transition-colors ${activeTab === 'text-ai' && activePage === 'home' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>Text AI</button>
-            <button onClick={() => { setActiveTab('gallery'); setActivePage('home'); }} className={`transition-colors ${activeTab === 'gallery' && activePage === 'home' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>Gallery</button>
-            {user && (
-              <button onClick={() => { setActiveTab('my-creations'); setActivePage('home'); }} className={`transition-colors ${activeTab === 'my-creations' && activePage === 'home' ? 'text-neon-blue' : 'hover:text-neon-blue'}`}>My Creations</button>
-            )}
-          </nav>
-          
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2 sm:gap-4"
+      <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5 backdrop-blur-2xl">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <button 
+            onClick={() => setIsMenuOpen(true)}
+            className="p-2 hover:bg-white/5 rounded-xl transition-all text-white/70 hover:text-white"
           >
+            <Menu className="w-6 h-6" />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-display font-bold tracking-tighter">
+              BOL-<span className="text-neon-blue">AI</span>
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-3">
             <button 
-              onClick={() => setIsLoginSliderOpen(true)}
-              className="flex items-center gap-2 px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 group shadow-lg shadow-black/20"
+              onClick={() => setIsProfileOpen(true)}
+              className="flex items-center gap-2 p-1 pr-3 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-all group"
             >
-              <div className="relative">
-                {user && user.photoURL ? (
-                  <img src={user.photoURL} alt="User" className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-neon-blue/50 group-hover:border-neon-blue transition-colors" />
-                ) : (
-                  <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-neon-blue/10 flex items-center justify-center border border-neon-blue/30 group-hover:border-neon-blue/60 transition-colors">
-                    <UserCircle className="w-4 h-4 sm:w-5 sm:h-5 text-neon-blue" />
-                  </div>
-                )}
-              </div>
-              <span className="hidden sm:inline font-bold text-xs sm:text-sm tracking-tight">{user ? user.displayName?.split(' ')[0] : 'Join Elite'}</span>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full border border-neon-blue/30" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-xs font-bold text-white">
+                  {user.displayName?.charAt(0) || '?'}
+                </div>
+              )}
+              <span className="text-xs font-bold text-white/70 group-hover:text-white transition-colors hidden sm:inline">
+                {user.displayName?.split(' ')[0]}
+              </span>
             </button>
-            <button onClick={() => setIsMenuOpen(true)} className="p-2 text-white/60 hover:text-white transition-colors active:scale-90">
-              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-          </motion.div>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 pt-12 pb-24">
+      <main className="container mx-auto px-6 pt-24 pb-32">
         {activePage === 'home' ? (
           <>
             {/* Admin Section */}
@@ -642,91 +699,15 @@ export default function App() {
 
             {/* Text AI Section */}
             {activeTab === 'text-ai' && (
-              <>
-                <div className="max-w-4xl mx-auto text-center mb-8 sm:mb-12">
-                  <motion.h2 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-3xl sm:text-4xl md:text-6xl font-display font-bold mb-4 leading-tight"
-                  >
-                    Bol-AI <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">Intelligence</span>
-                  </motion.h2>
-                  <motion.p 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="text-white/50 text-sm sm:text-lg max-w-2xl mx-auto mb-6 sm:mb-8 px-4"
-                  >
-                    Chat with our most advanced text models for coding, creative writing, and problem solving.
-                  </motion.p>
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex justify-center gap-3 sm:gap-4 mb-8 sm:mb-12 px-4"
-                  >
-                    <button 
-                      onClick={() => setActiveTab('generator')}
-                      className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-xs sm:text-base bg-white/5 text-white hover:bg-white/10 border border-white/10"
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                      <span>Image Gen</span>
-                    </button>
-                    <button 
-                      onClick={() => setActiveTab('text-ai')}
-                      className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-xs sm:text-base bg-neon-purple text-white shadow-[0_0_20px_rgba(176,38,255,0.4)]"
-                    >
-                      <Cpu className="w-4 h-4" />
-                      <span>Text AI Chat</span>
-                    </button>
-                  </motion.div>
-                </div>
+              <div className="max-w-4xl mx-auto">
                 <TextAI />
-              </>
+              </div>
             )}
 
             {/* Generator Section */}
             {activeTab === 'generator' && (
-              <>
-                <div className="max-w-4xl mx-auto text-center mb-8 sm:mb-16">
-                  <motion.h2 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-3xl sm:text-5xl md:text-7xl font-display font-bold mb-4 sm:mb-6 leading-tight"
-                  >
-                    Create Amazing <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">Images</span> With <br className="hidden sm:block" /> AI
-                  </motion.h2>
-                  <motion.p 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="text-white/50 text-sm sm:text-lg max-w-2xl mx-auto mb-6 sm:mb-8 px-4"
-                  >
-                    Type what you want to see, and our advanced AI will create it for you instantly.
-                  </motion.p>
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex justify-center gap-3 sm:gap-4 mb-8 sm:mb-12 px-4"
-                  >
-                    <button 
-                      onClick={() => setActiveTab('generator')}
-                      className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-xs sm:text-base bg-neon-blue text-black shadow-[0_0_20px_rgba(0,255,255,0.4)]"
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                      <span>Image Gen</span>
-                    </button>
-                    <button 
-                      onClick={() => setActiveTab('text-ai')}
-                      className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-xs sm:text-base bg-white/5 text-white hover:bg-white/10 border border-white/10"
-                    >
-                      <Cpu className="w-4 h-4" />
-                      <span>Text AI Chat</span>
-                    </button>
-                  </motion.div>
-                </div>
-                <div className="max-w-4xl mx-auto mb-24">
+              <div className="max-w-4xl mx-auto pb-48">
+                <div className="max-w-4xl mx-auto">
           
           {/* Controls: Size Selector & Quality & Enhance Toggle */}
           <div className="flex flex-col gap-5 mb-8 max-w-md mx-auto">
@@ -837,34 +818,23 @@ export default function App() {
             )}
           </div>
 
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95, rotateX: 10 }}
-            animate={{ opacity: 1, scale: 1, rotateX: 0, y: [0, -5, 0] }}
-            transition={{ y: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}
-            className="glass rounded-[2.5rem] p-4 flex flex-col gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative border border-white/10 group hover:border-neon-blue/30 transition-all duration-500"
-            style={{ transformStyle: 'preserve-3d', perspective: '1000px' }}
-          >
-            {isEnhancing && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="absolute inset-0 z-10 bg-black/80 backdrop-blur-sm flex items-center justify-center gap-3 rounded-3xl"
-              >
-                <Cpu className="w-6 h-6 text-neon-purple animate-pulse" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple font-bold tracking-widest uppercase text-sm">
-                  Bol-AI is enhancing your prompt...
-                </span>
-              </motion.div>
-            )}
-            
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 flex flex-col gap-2">
-                <textarea 
+          <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black via-black/90 to-transparent pt-12">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative group max-w-4xl mx-auto w-full pb-8 px-4"
+            >
+              <div className="relative bg-[#0a0c10] rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 border border-white/10 shadow-2xl backdrop-blur-xl">
+                <div className="pl-4">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-neon-blue" />
+                </div>
+                
+                <input
+                  type="text"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  maxLength={2000}
-                  placeholder={isUiMode ? "Describe the UI style you want to recreate..." : "Describe what you want to see (any language)..."}
-                  className="w-full bg-transparent px-6 py-4 outline-none text-white placeholder:text-white/20 font-medium resize-none min-h-[80px] max-h-[300px] scrollbar-hide"
+                  placeholder="Describe what you want to see..."
+                  className="flex-1 bg-transparent border-none focus:ring-0 py-2 sm:py-3 px-1 sm:px-2 text-white placeholder-white/20 text-xs sm:text-sm font-medium"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -873,75 +843,21 @@ export default function App() {
                   }}
                   disabled={isEnhancing || isGenerating}
                 />
-                <div className="text-right text-[10px] text-white/30 px-2">
-                  {prompt.length}/2000
+
+                <div className="flex items-center gap-1 pr-1">
+                  <button 
+                    onClick={handleGenerate}
+                    disabled={!prompt.trim() || isGenerating || isEnhancing || maintenanceMode === 1}
+                    className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 shadow-[0_0_15px_rgba(0,240,255,0.4)] flex items-center justify-center ${
+                      prompt.trim() ? 'bg-neon-blue text-black' : 'bg-white/10 text-white/40'
+                    }`}
+                  >
+                    {isGenerating ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Send className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  </button>
                 </div>
               </div>
-              
-              <div className="flex flex-col gap-2 justify-end">
-                <div className="flex gap-2">
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => setIsUiMode(!isUiMode)}
-                      className={`p-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${isUiMode ? 'bg-neon-blue text-black shadow-[0_0_15px_rgba(0,255,255,0.3)]' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
-                      disabled={isEnhancing || isGenerating}
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                      <span className="hidden md:inline">UI MODE</span>
-                    </button>
-                    <div className="relative">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveTooltip(activeTooltip === 'uimode' ? null : 'uimode');
-                        }}
-                        className={`p-2 rounded-xl transition-all duration-300 ${activeTooltip === 'uimode' ? 'bg-neon-blue/20 text-neon-blue' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'}`}
-                        title="What is UI Mode?"
-                      >
-                        <Info className="w-5 h-5" />
-                      </button>
-                      <AnimatePresence>
-                        {activeTooltip === 'uimode' && (
-                          <motion.div 
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute bottom-full right-0 md:left-1/2 md:-translate-x-1/2 mb-4 w-64 p-4 bg-black/95 border border-white/10 rounded-2xl text-xs text-white/70 leading-relaxed z-[100] backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-t-neon-blue/30"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-neon-blue animate-pulse" />
-                              <p className="font-bold text-neon-blue uppercase tracking-widest text-[10px]">UI Design Engine</p>
-                            </div>
-                            <p className="mb-2">UI Mode optimizes the AI to generate <span className="text-white font-medium">professional user interfaces</span>, web layouts, and app components.</p>
-                            <p className="text-[10px] italic text-white/40">Best for: Landing pages, Dashboards, Mobile App Screens, and UI Kits.</p>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                </div>
-                <button 
-                  onClick={handleGenerate}
-                  disabled={!prompt.trim() || isGenerating || isEnhancing || maintenanceMode === 1}
-                  className="bg-gradient-to-r from-neon-blue to-neon-purple px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {generationTime}s
-                    </>
-                  ) : (
-                    <>
-                      Generate
-                      <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
 
           {/* Maintenance Mode Warning */}
           <AnimatePresence>
@@ -1023,16 +939,6 @@ export default function App() {
                       </div>
                       <p className="text-neon-blue font-bold tracking-widest uppercase text-sm mt-2">Generating Masterpiece... ({generationTime}s)</p>
                       
-                      {/* Progress Bar */}
-                      <div className="w-full max-w-xs bg-black/40 rounded-full h-1.5 mt-2 overflow-hidden border border-white/5">
-                        <motion.div 
-                          className="bg-gradient-to-r from-neon-blue to-neon-purple h-full" 
-                          initial={{ width: "0%" }} 
-                          animate={{ width: "95%" }} 
-                          transition={{ duration: 45, ease: "easeOut" }} 
-                        />
-                      </div>
-                      
                       <p className="text-white/50 text-xs mt-2 max-w-xs leading-relaxed">
                         Image loading time may vary depending on your internet connection and server load. Please wait.
                       </p>
@@ -1097,7 +1003,7 @@ export default function App() {
             )}
           </AnimatePresence>
         </div>
-        </>
+        </div>
         )}
 
         {/* Gallery Section */}
@@ -1156,7 +1062,6 @@ export default function App() {
               <div className="text-center py-20 bg-white/5 rounded-3xl border border-white/10">
                 <ImageIcon className="w-16 h-16 text-white/20 mx-auto mb-4" />
                 <p className="text-white/50 text-lg">You haven't generated any images yet.</p>
-                <button onClick={() => setActiveTab('generator')} className="mt-6 px-6 py-2 bg-neon-blue/20 text-neon-blue rounded-xl hover:bg-neon-blue/30 transition-colors">Go to Generator</button>
               </div>
             ) : (
               <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
@@ -1255,6 +1160,7 @@ export default function App() {
         ) : null}
       </main>
 
+        {activeTab === 'generator' && activePage === 'home' && (
         <footer className="border-t border-white/10 py-12 mt-32 bg-black/60 backdrop-blur-2xl relative overflow-hidden">
           <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3">
@@ -1277,6 +1183,7 @@ export default function App() {
             </div>
           </div>
         </footer>
+        )}
 
       {/* Sidebar Menu */}
       <AnimatePresence>
@@ -1304,6 +1211,28 @@ export default function App() {
               </button>
 
               <div className="mt-12 flex flex-col gap-8 flex-1 overflow-y-auto pr-4 custom-scrollbar">
+                {user && (
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-4 mb-4">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt="Profile" className="w-12 h-12 rounded-full border border-neon-blue/30" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-lg font-bold text-white">
+                        {user.displayName?.charAt(0) || '?'}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{user.displayName}</p>
+                      <p className="text-[10px] text-white/40 truncate">{user.email}</p>
+                    </div>
+                    <button 
+                      onClick={() => { setIsProfileOpen(true); setIsMenuOpen(false); }}
+                      className="p-2 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-3 mb-4 shrink-0">
                   <div className="w-12 h-12 bg-gradient-to-br from-neon-blue to-neon-purple rounded-xl flex items-center justify-center shadow-lg shadow-neon-blue/20">
                     <Sparkles className="text-white w-6 h-6" />
@@ -1324,29 +1253,11 @@ export default function App() {
 
                 <div className="h-px bg-white/10 my-2 shrink-0" />
 
-                <div className="flex flex-col gap-8 pb-8">
-                  <div className="space-y-4">
-                    <h4 className="text-2xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-white">About Us</h4>
-                    <p className="text-white/60 text-sm leading-relaxed">
-                      Bol-AI is the world's most advanced AI image generation powerhouse. We bridge the gap between human imagination and digital reality.
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h4 className="text-2xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-purple to-white">Privacy Policy</h4>
-                    <p className="text-white/60 text-sm leading-relaxed">
-                      At Bol-AI, your creativity is private. We employ end-to-end encryption for your prompts and never store your generated masterpieces without your explicit consent.
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h4 className="text-2xl font-display font-bold text-white">Contact Us</h4>
-                    <p className="text-white/60 text-sm leading-relaxed mb-2">
-                      Ready to take your creativity to the next level? Our elite support team is here to assist you 24/7.
-                    </p>
-                    <a href="mailto:vivekdalvi147@gmail.com" className="text-lg font-bold text-neon-blue hover:text-white transition-colors break-all">
-                      vivekdalvi147@gmail.com
-                    </a>
+                <div className="flex flex-col gap-4 pb-8">
+                  <div className="pt-8 text-center border-t border-white/10">
+                    <p className="text-[10px] text-white/20 font-bold uppercase tracking-[0.3em] mb-2">Developed by</p>
+                    <p className="text-lg font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">Vivek Dalvi</p>
+                    <p className="text-[10px] text-white/40 mt-2">© 2026 Bol-AI. All rights reserved.</p>
                   </div>
                 </div>
               </div>
@@ -1426,24 +1337,24 @@ export default function App() {
 
       {/* Login Slider */}
       <AnimatePresence>
-        {isLoginSliderOpen && (
+        {isProfileOpen && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsLoginSliderOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+              onClick={() => setIsProfileOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
             />
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-full max-w-sm bg-black/90 backdrop-blur-2xl border-l border-white/10 z-50 p-8 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)] overflow-y-auto scrollbar-hide"
+              className="fixed top-0 right-0 h-full w-full max-w-sm bg-black/90 backdrop-blur-2xl border-l border-white/10 z-[70] p-8 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)] overflow-y-auto scrollbar-hide"
             >
               <button 
-                onClick={() => setIsLoginSliderOpen(false)}
+                onClick={() => setIsProfileOpen(false)}
                 className="absolute top-6 right-6 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
               >
                 <X className="w-6 h-6" />
@@ -1457,105 +1368,56 @@ export default function App() {
                   BOL-<span className="text-neon-blue">AI</span>
                 </h2>
                 <p className="text-[10px] text-neon-purple font-bold tracking-[0.2em] uppercase mb-8">Next-Gen Image Engine</p>
-                           {!user ? (
+                {user && (
                   <>
-                    <p className="text-white/60 mb-8 text-sm leading-relaxed">
-                      Log in to unlock unlimited 8K image generation and save your creations to the cloud.
-                    </p>
-                    <button 
-                      onClick={async () => {
-                        setLoginError(null);
-                        try {
-                          await signInWithPopup(auth, googleProvider);
-                          setIsLoginSliderOpen(false);
-                        } catch (error: any) {
-                          if (error.code === 'auth/popup-closed-by-user') {
-                            setLoginError("Login was cancelled. Please try again.");
-                          } else if (error.code === 'auth/popup-blocked') {
-                            setLoginError("Login popup was blocked. Please allow popups for this site.");
-                          } else {
-                            setLoginError("Login failed: " + error.message);
-                            console.error("Login failed:", error);
-                          }
-                        }
-                      }}
-                      className="w-full py-4 px-6 rounded-2xl bg-white text-black font-bold flex items-center justify-center gap-3 hover:scale-[1.02] transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-95"
-                    >
-                      <svg className="w-6 h-6" viewBox="0 0 24 24">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                      </svg>
-                      Continue with Google
-                    </button>
-                    {loginError && (
-                      <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center animate-shake">
-                        {loginError}
-                      </div>
-                    )}
-                    <p className="text-white/40 mt-6 text-[10px] italic text-center">
-                      Note: If login fails, please ensure popups are allowed for this site.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="mb-8 flex flex-col items-center">
-                      <div className="relative">
+                    <div className="mb-8 flex flex-col items-center w-full">
+                      <div className="relative mb-6">
                         {user.photoURL ? (
-                          <img src={user.photoURL} alt="Profile" className="w-24 h-24 rounded-full border-4 border-neon-blue/30 mb-4 shadow-[0_0_40px_rgba(0,255,255,0.3)]" />
+                          <img src={user.photoURL} alt="Profile" className="w-24 h-24 rounded-full border-4 border-neon-blue/30 shadow-[0_0_40px_rgba(0,255,255,0.3)]" />
                         ) : (
-                          <div className="w-24 h-24 rounded-full border-4 border-neon-blue/30 mb-4 shadow-[0_0_40px_rgba(0,255,255,0.3)] bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-4xl font-bold text-white uppercase">
+                          <div className="w-24 h-24 rounded-full border-4 border-neon-blue/30 shadow-[0_0_40px_rgba(0,255,255,0.3)] bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-4xl font-bold text-white uppercase">
                             {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
                           </div>
                         )}
+                        <div className="absolute -bottom-2 -right-2 bg-neon-blue text-black p-1.5 rounded-full shadow-lg">
+                          <ShieldCheck className="w-4 h-4" />
+                        </div>
                       </div>
-                      <h3 className="text-2xl font-bold text-white">{user.displayName}</h3>
-                      <p className="text-white/40 text-sm font-mono">{user.email}</p>
+                      <h3 className="text-2xl font-bold text-white mb-1">{user.displayName}</h3>
+                      <p className="text-white/40 text-sm font-mono mb-8">{user.email}</p>
+                      
+                      <div className="w-full grid grid-cols-2 gap-4 mb-8">
+                        <div className="glass p-4 rounded-2xl border-white/5">
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Status</p>
+                          <p className="text-neon-blue font-bold">Pro User</p>
+                        </div>
+                        <div className="glass p-4 rounded-2xl border-white/5">
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold mb-1">Credits</p>
+                          <p className="text-neon-purple font-bold">Unlimited</p>
+                        </div>
+                      </div>
                     </div>
-                    <button 
-                      onClick={async () => {
-                        await signOut(auth);
-                      }}
-                      className="w-full py-4 px-6 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 font-bold flex items-center justify-center gap-3 hover:bg-red-500/20 transition-all active:scale-95"
-                    >
-                      <LogOut className="w-5 h-5" />
-                      Sign Out
-                    </button>
+
+                    <div className="w-full space-y-3">
+                      <button 
+                        onClick={() => { setActiveTab('my-creations'); setIsProfileOpen(false); }}
+                        className="w-full py-4 px-6 rounded-2xl bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center gap-3 hover:bg-white/10 transition-all active:scale-95"
+                      >
+                        <ImageIcon className="w-5 h-5 text-neon-blue" /> My Creations
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          await signOut(auth);
+                          setIsProfileOpen(false);
+                        }}
+                        className="w-full py-4 px-6 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 font-bold flex items-center justify-center gap-3 hover:bg-red-500/20 transition-all active:scale-95"
+                      >
+                        <LogOut className="w-5 h-5" /> Sign Out
+                      </button>
+                    </div>
                   </>
                 )}
-
                 <div className="mt-12 w-full space-y-6 text-left pb-12">
-                  <div className="p-6 glass rounded-3xl border border-white/5 hover:border-neon-blue/20 transition-all group">
-                    <h4 className="text-lg font-bold text-white flex items-center gap-2 mb-3">
-                      <Info className="w-4 h-4 text-neon-blue" /> About Bol-AI
-                    </h4>
-                    <p className="text-xs text-white/50 leading-relaxed">
-                      Bol-AI is the world's most advanced 8K image generation engine. Built on proprietary neural architectures, we empower creators to manifest their wildest imaginations into hyper-realistic digital masterpieces. Our mission is to democratize high-end AI art through speed, precision, and unparalleled visual fidelity.
-                    </p>
-                  </div>
-
-                  <div className="p-6 glass rounded-3xl border border-white/5 hover:border-neon-purple/20 transition-all group">
-                    <h4 className="text-lg font-bold text-white flex items-center gap-2 mb-3">
-                      <ShieldCheck className="w-4 h-4 text-neon-purple" /> Privacy Policy
-                    </h4>
-                    <p className="text-xs text-white/50 leading-relaxed">
-                      We take your privacy seriously. All prompts are processed through end-to-end encrypted tunnels. We do not store your personal data beyond what is necessary for authentication. Your creations remain your intellectual property, and we never use them to train our models without explicit consent.
-                    </p>
-                  </div>
-
-                  <div className="p-6 glass rounded-3xl border border-white/5 hover:border-white/20 transition-all group">
-                    <h4 className="text-lg font-bold text-white flex items-center gap-2 mb-3">
-                      <Mail className="w-4 h-4 text-white" /> Contact Us
-                    </h4>
-                    <p className="text-xs text-white/50 leading-relaxed mb-4">
-                      Have questions or need technical support? Our dedicated team is here to help you 24/7. Reach out to us for enterprise solutions or general inquiries.
-                    </p>
-                    <a href="mailto:vivekdalvi147@gmail.com" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neon-blue/10 text-neon-blue font-bold text-xs hover:bg-neon-blue/20 transition-colors">
-                      <Mail className="w-3 h-3" /> vivekdalvi147@gmail.com
-                    </a>
-                  </div>
-
                   <div className="pt-8 text-center border-t border-white/5">
                     <p className="text-[10px] text-white/20 font-bold uppercase tracking-[0.3em] mb-2">Developed by</p>
                     <p className="text-lg font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">Vivek Dalvi</p>

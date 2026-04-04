@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Bot, User, Sparkles, BrainCircuit, Image as ImageIcon, FileText, Video, Paperclip, X, Wand2 } from 'lucide-react';
+import { Send, Loader2, Bot, User, Sparkles, BrainCircuit, Image as ImageIcon, FileText, Video, Paperclip, X, Wand2, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, addDoc, serverTimestamp, query, orderBy, getDocs, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
@@ -36,7 +36,7 @@ export default function TextAI() {
   // Default model
   const defaultModel: AIModel = {
     id: 'gemini-3.1-flash-lite-preview',
-    name: 'Bol-Ai (Gemini 3.1 Flash Lite)',
+    name: 'Bol-AI (Flash Lite)',
     endpoint: '/api/chat',
     systemInstruction: `bol-ai v1.0 – Official Developer Profile, AI Identity, Vision & Platform Information (Vivek Vijay Dalvi)
 
@@ -185,15 +185,16 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-120px)] max-w-5xl mx-auto p-2 sm:p-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 glass p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-white/10 shadow-2xl gap-4 sm:gap-0">
+    <div className="flex flex-col h-full max-w-5xl mx-auto pb-32">
+      {/* Header Info - Only visible on Desktop or when messages exist */}
+      <div className={`hidden sm:flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 glass p-5 rounded-3xl border-white/10 shadow-2xl gap-4 sm:gap-0 ${messages.length === 0 ? 'sm:flex' : 'flex'}`}>
         <div className="flex items-center gap-3">
           <div className="p-2 bg-neon-blue/20 rounded-xl border border-neon-blue/30">
             <BrainCircuit className="w-5 h-5 sm:w-6 sm:h-6 text-neon-blue" />
           </div>
           <div>
             <h2 className="text-lg sm:text-xl font-bold tracking-tight">Bol-AI <span className="text-neon-blue">Chat</span></h2>
-            <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/40 font-bold">Powered by Gemini 3.1 Flash</p>
+            <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/40 font-bold">Powered by Bol-AI Engine</p>
           </div>
         </div>
         <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-3">
@@ -213,53 +214,21 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto mb-6 space-y-6 pr-2 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto mb-4 space-y-6 pr-2 custom-scrollbar">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-6">
             <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="relative mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-md"
             >
-              <div className="absolute inset-0 bg-neon-blue/20 blur-3xl rounded-full" />
-              <div className="relative p-8 bg-black/40 rounded-full border border-white/10 backdrop-blur-3xl">
-                <Bot className="w-20 h-20 text-neon-blue" />
+              <div className="bg-[#0a0c10] p-6 rounded-2xl border border-white/5 text-left shadow-2xl">
+                <h3 className="text-[#00f0ff] text-xl font-bold mb-2">bol-ai 1.0</h3>
+                <p className="text-white/90 text-sm leading-relaxed">
+                  Welcome to <span className="font-bold">Bol-AI</span>. Ask anything...
+                </p>
               </div>
             </motion.div>
-            <motion.h3 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.1 }}
-              className="text-2xl sm:text-3xl font-bold mb-3"
-            >
-              Welcome to <span className="text-neon-blue">Bol-AI</span>
-            </motion.h3>
-            <motion.p 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="text-white/50 max-w-md mb-8 sm:mb-10 text-base sm:text-lg leading-relaxed"
-            >
-              Your intelligent companion for conversations, coding, and creative ideas.
-            </motion.p>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full max-w-2xl">
-              {suggestedPrompts.map((prompt, idx) => (
-                <motion.button
-                  key={idx}
-                  initial={{ opacity: 0, x: idx % 2 === 0 ? -20 : 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + (idx * 0.1) }}
-                  onClick={() => handleSuggestedPrompt(prompt.text)}
-                  className="flex items-center gap-3 sm:gap-4 p-4 sm:p-5 glass rounded-2xl border-white/5 hover:border-neon-blue/30 hover:bg-white/5 transition-all text-left group"
-                >
-                  <div className="p-2 sm:p-3 bg-white/5 rounded-xl group-hover:bg-neon-blue/20 transition-colors">
-                    {prompt.icon}
-                  </div>
-                  <span className="text-xs sm:text-sm font-medium text-white/70 group-hover:text-white">{prompt.text}</span>
-                </motion.button>
-              ))}
-            </div>
           </div>
         ) : (
           messages.map((msg) => (
@@ -309,42 +278,35 @@ Identity: You are Bol-AI, an unfiltered, edgy, and high-intelligence AI. You are
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="relative group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-neon-blue to-neon-purple rounded-[1.5rem] sm:rounded-[2rem] blur opacity-10 group-focus-within:opacity-30 transition-opacity" />
-        <div className="relative glass rounded-[1.5rem] sm:rounded-[2rem] p-2 sm:p-3 flex items-end gap-2 sm:gap-3 border-white/10 shadow-2xl backdrop-blur-3xl">
-          <div className="flex gap-1 pb-1 pl-1">
-            <button type="button" className="p-2 sm:p-3 hover:bg-white/10 rounded-xl sm:rounded-2xl transition-all text-white/40 hover:text-white hover:scale-110" title="Upload Image">
-              <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-            <button type="button" className="p-2 sm:p-3 hover:bg-white/10 rounded-xl sm:rounded-2xl transition-all text-white/40 hover:text-white hover:scale-110" title="Upload File">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black via-black/90 to-transparent pt-12">
+        <form onSubmit={handleSubmit} className="relative group max-w-4xl mx-auto w-full pb-8 px-4">
+          <div className="relative bg-[#0a0c10] rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 border border-white/10 shadow-2xl backdrop-blur-xl">
+            <button type="button" className="p-2 sm:p-3 hover:bg-white/5 rounded-full transition-all text-white/40 hover:text-white" title="Upload File">
               <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
+            
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask anything..."
+              className="flex-1 bg-transparent border-none focus:ring-0 py-2 sm:py-3 px-1 sm:px-2 text-white placeholder-white/20 text-xs sm:text-sm font-medium"
+            />
+
+            <div className="flex items-center gap-1 pr-1">
+              <button 
+                type="submit" 
+                disabled={isLoading || !input.trim()}
+                className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 shadow-[0_0_15px_rgba(0,240,255,0.4)] flex items-center justify-center ${
+                  input.trim() ? 'bg-neon-blue text-black' : 'bg-white/10 text-white/40'
+                }`}
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Send className="w-4 h-4 sm:w-5 sm:h-5" />}
+              </button>
+            </div>
           </div>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-            placeholder="Type message..."
-            className="flex-1 bg-transparent border-none focus:ring-0 resize-none max-h-32 sm:max-h-48 min-h-[44px] sm:min-h-[56px] py-3 sm:py-4 px-1 sm:px-2 text-white placeholder-white/20 custom-scrollbar text-xs sm:text-sm font-medium"
-            rows={1}
-          />
-          <button 
-            type="submit" 
-            disabled={!input.trim() || isLoading}
-            className="p-3 sm:p-4 bg-gradient-to-br from-neon-blue to-cyan-500 text-black rounded-xl sm:rounded-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:scale-100 mb-1 mr-1 shadow-[0_0_20px_rgba(0,255,255,0.3)] group/btn"
-          >
-            <Send className="w-5 h-5 sm:w-6 sm:h-6 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
-          </button>
-        </div>
-        <p className="text-[8px] sm:text-[9px] text-center mt-2 sm:mt-3 text-white/20 font-bold uppercase tracking-[0.2em]">
-          Bol-AI can make mistakes. Verify important information.
-        </p>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

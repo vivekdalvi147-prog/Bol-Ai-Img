@@ -117,7 +117,7 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
     if (!rawApiKey || rawApiKey.includes('TODO') || rawApiKey.length < 10) {
       console.error("[Bol-AI] Enhance Error: Invalid API Key configuration");
       return res.status(400).json({ 
-        error: "API Key is missing or invalid. Please add GEMINI_API_KEY in AI Studio Secrets." 
+        error: "API Key is missing or invalid. Please add BOL_AI_API_KEY in AI Studio Secrets." 
       });
     }
 
@@ -136,7 +136,7 @@ app.post("/api/enhance-prompt", rateLimiter, async (req, res) => {
 
     let enhancedText = prompt;
     try {
-      console.log("[Bol-AI] Enhancing prompt with Bol-AI Engine (Gemma 3 27B IT)...");
+      console.log("[Bol-AI] Enhancing prompt with Bol-AI Engine (Gemma 3 27B)...");
       const response = await ai.models.generateContent({
         model: "gemma-3-27b-it",
         contents: upgradeInstruction,
@@ -178,14 +178,14 @@ app.post("/api/chat", async (req, res) => {
     if (!rawApiKey || rawApiKey.includes('TODO') || rawApiKey.length < 10) {
       console.error("[Bol-AI] Chat Error: Invalid API Key configuration");
       return res.status(400).json({ 
-        error: "Gemini API Key is missing or invalid. Please add GEMINI_API_KEY in AI Studio Secrets." 
+        error: "Bol-AI API Key is missing or invalid. Please add BOL_AI_API_KEY in AI Studio Secrets." 
       });
     }
 
     const apiKey = rawApiKey.trim();
     const ai = new GoogleGenAI({ apiKey });
     
-    // Format history for Gemini
+    // Format history for Bol-AI
     const contents = [];
     if (history && Array.isArray(history)) {
       for (const msg of history) {
@@ -206,7 +206,7 @@ app.post("/api/chat", async (req, res) => {
       contents: contents,
       config: {
         systemInstruction: systemInstruction || "You are Bol-AI, a helpful assistant.",
-        // Enable thinking if supported by the model (Gemini 3 series)
+        // Enable thinking if supported by the model (Bol-AI 3 series)
         // Only use HIGH for pro models, use default for others
         thinkingConfig: model?.includes('pro') ? { thinkingLevel: ThinkingLevel.HIGH } : undefined,
       }

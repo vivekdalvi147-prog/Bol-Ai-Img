@@ -99,7 +99,7 @@ export default function AdminPanel() {
               value={newModel.name} 
               onChange={e => setNewModel({...newModel, name: e.target.value})}
               className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white"
-              placeholder="e.g., Gemini 1.5 Pro"
+              placeholder="e.g., Bol-AI Pro"
             />
           </div>
           
